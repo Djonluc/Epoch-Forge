@@ -6,7 +6,7 @@ import { SetupScreen } from './components/SetupScreen';
 import { CivCard } from './components/CivCard';
 import { audioService } from './services/audio';
 import { DEFAULT_NAMES, MAP_TYPES, PRESET_MODES, POINT_MODES, EPOCHS } from './constants';
-import { Download, Loader2, Globe, Scale, Hourglass, LayoutGrid, Columns, Trophy, Link as LinkIcon, Check } from 'lucide-react';
+import { Download, RefreshCw, Globe, Scale, Hourglass, LayoutGrid, Columns, Trophy, Link as LinkIcon, Check, Lock } from 'lucide-react';
 import { DjonStNixLogo } from './components/DjonStNixLogo';
 
 const App: React.FC = () => {
@@ -42,6 +42,7 @@ const App: React.FC = () => {
     const [resolvedConfig, setResolvedConfig] = useState<AppConfig | null>(null);
     const [viewMode, setViewMode] = useState<'grid' | 'compare'>('grid');
     const [linkCopied, setLinkCopied] = useState(false);
+    const [isSetupComplete, setIsSetupComplete] = useState(false);
 
     const updateConfig = (updates: Partial<AppConfig>) => {
         audioService.playInteraction();
@@ -180,6 +181,8 @@ const App: React.FC = () => {
     const resetApp = () => {
         audioService.playInteraction();
         setIsForged(false);
+        setIsForging(false);
+        setIsSetupComplete(false);
         setResolvedConfig(null);
         setCivs([]);
         window.history.replaceState({}, '', window.location.pathname);
@@ -219,9 +222,14 @@ const App: React.FC = () => {
                         </div>
                     )}
 
-                    <p className={`font-bold text-sm tracking-[0.3em] uppercase transition-colors duration-700 mt-8 ${isForged ? 'text-amber-500' : 'text-slate-600'}`}>
-                        {getHeaderText()}
-                    </p>
+                    <div className="flex flex-col items-center mt-12 mb-8 group relative max-w-4xl mx-auto px-4 font-mono">
+                        <div className="text-[10px] font-bold text-slate-600 tracking-[0.2em] uppercase mb-4 animate-pulse italic">
+                            {isForged ? "Tactical Report Generated" : "System Ready for Calculation"}
+                        </div>
+                        <p className={`font-bold text-xs tracking-[0.2em] uppercase transition-colors duration-700 p-3 px-6 rounded-2xl border-2 ${isForged ? 'text-orange-500 border-orange-500/20 bg-orange-500/5 shadow-[0_0_15px_rgba(249,115,22,0.1)]' : 'text-slate-600 border-white/5 bg-[#12141C]'}`}>
+                            {getHeaderText()}
+                        </p>
+                    </div>
 
                     {/* Fixed DjonStNix Branding */}
                     <div className="fixed bottom-6 right-8 z-50 pointer-events-none">
@@ -231,39 +239,53 @@ const App: React.FC = () => {
                     </div>
                 </div>
 
-                <div className={`transition-all duration-1000 ${isForged || isForging ? 'opacity-10 blur-[4px] grayscale pointer-events-none' : ''}`}>
-                    <SetupScreen config={config} onUpdate={updateConfig} />
-                </div>
+                {!isForged && (
+                    <div className={`transition-all duration-1000 ${isForging ? 'opacity-10 blur-[4px] grayscale pointer-events-none' : ''}`}>
+                        <SetupScreen
+                            config={config}
+                            onUpdate={updateConfig}
+                            onComplete={setIsSetupComplete}
+                        />
+                    </div>
+                )}
 
                 {!isForged && (
-                    <div className="flex flex-col items-center justify-center pt-12 pb-12 w-full">
+                    <div className="flex flex-col items-center justify-center pt-12 pb-12 w-full font-mono">
                         {isForging ? (
                             <div className="flex flex-col items-center animate-pulse space-y-8">
                                 <div className="relative">
-                                    <Loader2 className="animate-spin text-orange-500" size={80} />
-                                    <div className="absolute inset-0 bg-orange-500/30 blur-3xl rounded-full" />
+                                    <RefreshCw className="animate-spin text-orange-500" size={80} />
+                                    <div className="absolute inset-0 bg-orange-500/30 blur-[80px] rounded-full" />
                                 </div>
-                                <span className="text-3xl font-black text-white tracking-[0.4em] uppercase italic">Forging Results...</span>
+                                <span className="text-[11px] font-bold text-orange-400 tracking-[0.3em] uppercase italic">Calculating Probabilities...</span>
                             </div>
-                        ) : (
-                            <div className="flex flex-col items-center gap-8 w-full">
-                                <button onClick={() => handleForge()} className="group relative flex items-center justify-center w-full max-w-lg h-56 font-black text-white transition-all duration-700 bg-gradient-to-br from-[#12141C] to-[#0A0B10] rounded-[50px] hover:scale-[1.03] active:scale-[0.97] border-2 border-white/5 hover:border-orange-500/40 shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden">
-                                    <div className="absolute inset-0 bg-gradient-to-br from-orange-600/30 via-transparent to-red-600/30 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                        ) : isSetupComplete ? (
+                            <div className="flex flex-col items-center gap-10 w-full animate-fade-in-up">
+                                <button onClick={() => handleForge()} className="group relative flex items-center justify-center w-full max-w-lg h-60 font-black text-white transition-all duration-700 bg-[#12141C] rounded-[3.5rem] hover:scale-[1.05] active:scale-[0.95] border-4 border-white/5 hover:border-orange-500/50 shadow-[0_0_100px_rgba(0,0,0,0.9)] overflow-hidden">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-orange-600/40 via-transparent to-orange-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                                     <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                                        {[...Array(15)].map((_, i) => (
-                                            <div key={i} className="absolute bottom-[-10%] w-1.5 h-1.5 bg-gradient-to-t from-orange-500 to-amber-300 rounded-full animate-flame-spark"
-                                                style={{ left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 5}s`, animationDuration: `${1 + Math.random() * 2}s`, opacity: 0.4 + Math.random() * 0.4 }} />
+                                        {[...Array(20)].map((_, i) => (
+                                            <div key={i} className="absolute bottom-[-10%] w-2 h-2 bg-gradient-to-t from-orange-500 to-amber-200 rounded-full animate-flame-spark"
+                                                style={{ left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 5}s`, animationDuration: `${0.8 + Math.random() * 2}s`, opacity: 0.5 + Math.random() * 0.5 }} />
                                         ))}
                                     </div>
                                     <div className="relative flex flex-col items-center justify-center pt-4">
-                                        <span className="text-base tracking-[0.8em] font-bold text-orange-500/50 mb-3 group-hover:text-orange-400 transition-colors uppercase">Ignite The</span>
+                                        <span className="text-[11px] tracking-[0.5em] font-bold text-orange-500/30 mb-4 group-hover:text-orange-400/60 transition-colors uppercase italic">Establish Connection</span>
                                         <div className="relative">
-                                            <span className="text-8xl md:text-9xl tracking-tighter font-black bg-gradient-to-r from-orange-400 via-amber-200 to-orange-400 bg-clip-text text-transparent drop-shadow-[0_8px_8px_rgba(0,0,0,0.8)]">FORGE</span>
-                                            <div className="absolute inset-0 blur-2xl bg-orange-500/10 -z-10 group-hover:bg-orange-500/30 transition-colors" />
+                                            <span className="text-9xl md:text-[10rem] tracking-tighter font-black bg-gradient-to-b from-slate-100 via-orange-400 to-orange-800 bg-clip-text text-transparent filter drop-shadow-[0_10px_10px_rgba(0,0,0,0.8)]">FORGE</span>
+                                            <div className="absolute inset-0 blur-3xl bg-orange-500/20 -z-10 group-hover:bg-orange-500/40 transition-colors" />
                                         </div>
                                     </div>
                                 </button>
-                                <p className="text-sm font-black text-slate-700 uppercase tracking-[0.8em] transition-colors group-hover:text-amber-900/50 animate-pulse">Awaiting your command</p>
+                                <div className="flex flex-col items-center gap-3">
+                                    <div className="h-0.5 w-12 bg-orange-500/20 rounded-full animate-pulse" />
+                                    <p className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em] animate-pulse">Strategy locked for execution</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center gap-3 opacity-30">
+                                <Lock size={20} className="text-slate-800" />
+                                <p className="text-[10px] font-bold text-slate-700 uppercase tracking-[0.2em]">Calculation awaiting inputs</p>
                             </div>
                         )}
                     </div>

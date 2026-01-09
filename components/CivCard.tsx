@@ -16,13 +16,24 @@ import {
     AlertTriangle,
     ListChecks,
     Download,
-    Sparkles
+    Sparkles,
+    Activity,
+    Zap,
+    Target,
+    Shield,
+    Swords,
+    Cpu,
+    Coins,
+    Anchor,
+    Search,
+    User,
+    CornerDownRight
 } from 'lucide-react';
 
 interface Props {
     civ: PlayerCiv;
     onReroll: () => void;
-    index: number; // For layout staggering
+    index: number;
     isCompact?: boolean;
     isTournament?: boolean;
     isTopScore?: boolean;
@@ -35,7 +46,6 @@ export const CivCard: React.FC<Props> = ({ civ, onReroll, index, isCompact = fal
     const cardRef = useRef<HTMLDivElement>(null);
     const [isDownloading, setIsDownloading] = useState(false);
 
-    // Group items
     const groupedItems: Record<string, GeneratedItem[]> = {};
     civ.items.forEach(item => {
         const key = item.category || "Civilization Powers";
@@ -43,19 +53,16 @@ export const CivCard: React.FC<Props> = ({ civ, onReroll, index, isCompact = fal
         groupedItems[key].push(item);
     });
 
-    // In-Game Checklist Format
     const handleCopy = () => {
-        let text = `CIV BUILDER CHECKLIST - ${civ.playerName}\n`;
-        text += `Archetype: ${civ.summary} (Power: ${civ.powerScore})\n`;
-        text += `----------------------------------------\n`;
-
-        // Flatten list
+        let text = `Tactical Data: ${civ.playerName}\n`;
+        text += `Spec: ${civ.summary}\n`;
+        text += `Power Level: ${civ.powerScore}\n`;
+        text += `========================================\n`;
         civ.items.forEach((item, i) => {
-            text += `${i + 1}. [ ] ${item.name} (${item.cost})\n`;
+            text += `[${(i + 1).toString().padStart(2, '0')}] ${item.name} (Cost: ${item.cost})\n`;
         });
-
-        text += `\nRemaining Points: ${100 - civ.pointsSpent}\n`;
-
+        text += `========================================\n`;
+        text += `Residual Points: ${100 - civ.pointsSpent}\n`;
         navigator.clipboard.writeText(text);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -68,12 +75,10 @@ export const CivCard: React.FC<Props> = ({ civ, onReroll, index, isCompact = fal
             const dataUrl = await toPng(cardRef.current, {
                 cacheBust: true,
                 backgroundColor: '#0F1117',
-                style: {
-                    transform: 'scale(1)',
-                }
+                style: { transform: 'scale(1)' }
             });
             const link = document.createElement('a');
-            link.download = `epoch-forge-${civ.playerName.toLowerCase()}-${civ.powerScore}.png`;
+            link.download = `Epoch_Forge_${civ.playerName}_${civ.powerScore}.png`;
             link.href = dataUrl;
             link.click();
         } catch (err) {
@@ -83,300 +88,231 @@ export const CivCard: React.FC<Props> = ({ civ, onReroll, index, isCompact = fal
         }
     };
 
-    // Determine Accent Color based on Primary Category
     const getAccentColor = (category: string) => {
-        if (category.includes("Economy") || category.includes("Citizens")) return "border-emerald-500/40 shadow-[0_8px_30px_rgb(16,185,129,0.1)]";
-        if (category.includes("Buildings") || category.includes("General") || category.includes("Religion")) return "border-indigo-500/40 shadow-[0_8px_30px_rgb(99,102,241,0.1)]";
-        // Default Military
-        return "border-rose-500/40 shadow-[0_8px_30px_rgb(244,63,94,0.1)]";
+        if (category.includes("Economy") || category.includes("Citizens")) return "border-emerald-500/30";
+        if (category.includes("Buildings") || category.includes("General") || category.includes("Religion")) return "border-indigo-500/30";
+        return "border-rose-500/30";
     };
 
-    // Emoji Archetype
-    const getArchetypeEmoji = (category: string) => {
-        if (category.includes("Economy")) return "🌾";
-        if (category.includes("Citizens")) return "🛖";
-        if (category.includes("Buildings")) return "🧱";
-        if (category.includes("Infantry")) return "⚔️";
-        if (category.includes("Cavalry")) return "🐎";
-        if (category.includes("Siege")) return "☄️";
-        if (category.includes("Tanks")) return "🚜"; // or tank icon if available
-        if (category.includes("Aircraft")) return "✈️";
-        if (category.includes("Ships")) return "⚓";
-        if (category.includes("Cyber")) return "🤖";
-        if (category.includes("Religion")) return "🕌";
-        return "🏛️";
+    const getArchetypeIcon = (category: string) => {
+        if (category.includes("Economy")) return <Coins size={20} />;
+        if (category.includes("Citizens")) return <User size={20} />;
+        if (category.includes("Buildings")) return <Shield size={20} />;
+        if (category.includes("Infantry") || category.includes("Cavalry")) return <Swords size={20} />;
+        if (category.includes("Ships")) return <Anchor size={20} />;
+        if (category.includes("Cyber") || category.includes("Tanks")) return <Cpu size={20} />;
+        return <Activity size={20} />;
     };
 
     const accentClass = getAccentColor(civ.primaryCategory);
-    const archetypeEmoji = getArchetypeEmoji(civ.primaryCategory);
-
-    // Legendary Theme Logic
+    const archetypeIcon = getArchetypeIcon(civ.primaryCategory);
     const isLegendary = civ.powerScore >= 85;
 
-    // Formatting helper
-    const getIdentityTag = (cat: string) => {
-        const base = cat.split('–')[0].trim();
-        return `${archetypeEmoji} ${base}-Focused`;
-    };
-
-    // Score Color Logic
     const getScoreColor = (score: number) => {
-        if (score >= 80) return "text-emerald-400 bg-emerald-400/10 border-emerald-400/20";
-        if (score >= 50) return "text-amber-400 bg-amber-400/10 border-amber-400/20";
-        return "text-rose-400 bg-rose-400/10 border-rose-400/20";
+        if (score >= 80) return "text-emerald-400";
+        if (score >= 50) return "text-amber-400";
+        return "text-rose-400";
     };
 
-    // Difficulty Dot
     const getDifficultyColor = (diff: Difficulty) => {
-        if (diff === 'Beginner') return 'bg-emerald-500';
-        if (diff === 'Intermediate') return 'bg-amber-500';
-        return 'bg-rose-500';
+        if (diff === 'Beginner') return 'text-emerald-500';
+        if (diff === 'Intermediate') return 'text-amber-500';
+        return 'text-rose-500';
     };
 
-    // Helper for cost tooltip
     const getCostExplanation = (item: GeneratedItem) => {
         if (!item.inflationApplied || item.inflationApplied <= 0) return undefined;
-        if (!item.category) return undefined;
-
         const heading = HEADINGS.find(h => h.name === item.category);
         if (!heading || heading.bonusCost === 0) return undefined;
-
-        const count = item.inflationApplied / heading.bonusCost;
-        return `Cost increased by +${item.inflationApplied} because ${count} ${item.category.split('–')[0].trim()} bonuses were already selected.`;
+        return `Inflation Adjustment: +${item.inflationApplied}PT (Sector Saturation)`;
     };
-
-    // Stagger / Hand-dealt feel (disable in compact mode for cleaner grid)
-    const tiltClass = isCompact ? '' : (index % 2 === 0 ? "hand-dealt-0" : "hand-dealt-1");
 
     return (
         <div
             ref={cardRef}
-            className={`bg-[#171A21] rounded-3xl p-6 md:p-7 w-full relative overflow-hidden transition-all hover:scale-[1.01] hover:shadow-2xl hover:z-10 border-l-4 ${isLegendary ? 'border-amber-500/60 shadow-[0_0_50px_rgba(245,158,11,0.1)]' : accentClass} ${tiltClass} ${isCompact ? 'flex flex-col h-full' : ''}`}
+            className={`bg-[#12141C] rounded-[2.5rem] p-8 md:p-10 w-full relative overflow-hidden transition-all hover:scale-[1.01] hover:shadow-[0_0_60px_rgba(0,0,0,0.5)] border-2 ${isLegendary ? 'border-amber-500/50 shadow-[inset_0_0_40px_rgba(245,158,11,0.1)]' : accentClass} ${isCompact ? 'flex flex-col h-full' : ''}`}
         >
+            {/* Tactical Grid Overlay */}
+            <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#ffffff_2px,transparent_2px)] [background-size:32px_32px]" />
+
             {isLegendary && (
-                <>
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-amber-500/15 to-transparent -mr-16 -mt-16 rounded-full blur-2xl pointer-events-none" />
-                    {/* Legendary Embers */}
-                    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                        {[...Array(16)].map((_, i) => (
-                            <div
-                                key={i}
-                                className="absolute bottom-0 w-1 h-1 bg-gradient-to-t from-orange-500 to-amber-300 rounded-full animate-flame-spark"
-                                style={{
-                                    left: `${Math.random() * 100}%`,
-                                    animationDelay: `${Math.random() * 5}s`,
-                                    animationDuration: `${2 + Math.random() * 3}s`,
-                                    opacity: 0.4 + Math.random() * 0.4
-                                }}
-                            />
-                        ))}
-                    </div>
-                </>
+                <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 blur-[100px] -mr-32 -mt-32 pointer-events-none" />
             )}
 
-            {/* Header */}
-            <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-xl shadow-inner border border-white/5">
-                        {archetypeEmoji}
+            {/* Top Bar - Identity & Status */}
+            <div className="flex justify-between items-start mb-8 relative z-10">
+                <div className="flex items-center gap-6">
+                    <div className={`w-16 h-16 rounded-3xl bg-[#171A21] flex items-center justify-center text-slate-500 shadow-inner border-2 ${isLegendary ? 'border-amber-500/40 text-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.2)]' : 'border-white/5'}`}>
+                        {archetypeIcon}
                     </div>
                     <div>
-                        <h3 className="text-2xl font-black text-white tracking-tight leading-none">{civ.playerName}</h3>
-                        <div className="flex items-center gap-2 mt-1.5">
-                            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest opacity-80">
-                                {getIdentityTag(civ.primaryCategory)}
+                        <div className="flex items-center gap-3">
+                            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em] font-mono">Data Entry:</span>
+                            {isTopScore && <Zap size={14} className="text-amber-400 animate-pulse" />}
+                        </div>
+                        <h3 className="text-4xl font-black text-slate-100 italic tracking-tighter leading-none mb-2">{civ.playerName}</h3>
+                        <div className="flex flex-wrap items-center gap-3 font-mono">
+                            <span className="text-[10px] font-bold text-orange-500 px-2 py-0.5 rounded-lg bg-orange-500/10 border border-orange-500/20 uppercase tracking-widest">
+                                {civ.primaryCategory.split('–')[0].trim()} Spec
+                            </span>
+                            <div className="flex items-center gap-2 px-2 py-0.5 rounded-lg bg-white/5 border border-white/5">
+                                <Search size={10} className="text-slate-600" />
+                                <span className={`text-[10px] font-bold uppercase tracking-wider ${getDifficultyColor(civ.difficulty)}`}>{civ.difficulty} Complexity</span>
                             </div>
-                            <div className="w-1 h-1 bg-slate-700 rounded-full"></div>
-                            {/* Difficulty Indicator */}
-                            <Tooltip content={<div className="p-1"><strong>{civ.difficulty} Difficulty</strong><br />Complexity of this build.</div>}>
-                                <div className="flex items-center gap-1.5">
-                                    <div className={`w-2 h-2 rounded-full ${getDifficultyColor(civ.difficulty)} shadow-sm`}></div>
-                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider hidden sm:block">{civ.difficulty}</span>
-                                </div>
-                            </Tooltip>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <div className={`px-2 py-1 rounded border text-[10px] font-bold uppercase tracking-wide flex items-center gap-1.5 ${getScoreColor(civ.powerScore)} ${isLegendary ? 'border-amber-400/50 shadow-[0_0_10px_rgba(245,158,11,0.2)]' : ''}`}>
-                        {isTopScore && <span className="text-amber-400">👑</span>}
-                        <span>Power</span>
-                        <span className="text-sm">{civ.powerScore}</span>
+                <div className="flex flex-col items-end gap-2 font-mono">
+                    <div className={`flex flex-col items-end px-4 py-2 rounded-2xl bg-[#0F1117] border-2 ${isLegendary ? 'border-amber-500/40 shadow-[0_0_20px_rgba(245,158,11,0.2)]' : 'border-white/5'}`}>
+                        <span className="text-[9px] font-bold text-slate-600 tracking-widest uppercase mb-1">Power Output</span>
+                        <span className={`text-4xl font-black italic tracking-tighter ${getScoreColor(civ.powerScore)} drop-shadow-[0_0_15px_rgba(0,0,0,0.5)]`}>
+                            {civ.powerScore}<span className="text-xs ml-1 opacity-50">%</span>
+                        </span>
                     </div>
                 </div>
             </div>
 
-            {/* Warnings Display (Map Aware) */}
-            {civ.warnings && civ.warnings.length > 0 && !isCompact && (
-                <div className="mb-4 pl-[52px]">
-                    {civ.warnings.map((warn, i) => (
-                        <div key={i} className="flex items-start gap-2 text-amber-500/80 text-xs bg-amber-900/10 p-2 rounded border border-amber-500/20">
-                            <AlertTriangle size={12} className="mt-0.5 shrink-0" />
-                            <span>{warn}</span>
+            {/* Tactical Briefing */}
+            {!isCompact && (
+                <div className="relative mb-10 pl-4 md:pl-20">
+                    <div className="absolute left-6 top-0 bottom-0 w-px bg-gradient-to-b from-orange-500/40 via-orange-500/10 to-transparent" />
+                    <div className="pl-12">
+                        <div className="flex items-center gap-3 mb-3">
+                            <Activity size={14} className="text-orange-500/60" />
+                            <span className="text-[11px] font-bold text-slate-600 uppercase tracking-[0.3em] font-mono">Tactical Briefing</span>
                         </div>
-                    ))}
-                </div>
-            )}
-
-            {/* Summary - Hide in Compact Mode */}
-            <div className={`pl-[52px] ${isCompact ? 'mb-4' : ''}`}>
-                {!isCompact && (
-                    <>
-                        <p className="text-base text-slate-300 leading-relaxed font-medium opacity-90 mb-6">
-                            {civ.summary}
-                            <Tooltip content="The AI's tactical reasoning for these choices.">
-                                <button
-                                    onClick={() => setShowReasoning(!showReasoning)}
-                                    className="inline-flex items-center ml-2 text-slate-600 hover:text-[#5B8CFF] transition-colors"
-                                >
-                                    <HelpCircle size={14} />
-                                </button>
-                            </Tooltip>
+                        <p className="text-lg text-slate-300 font-medium leading-[1.6] italic tracking-tight mb-4">
+                            "{civ.summary}"
+                            <button onClick={() => setShowReasoning(!showReasoning)} className="ml-3 p-1 rounded-lg hover:bg-white/5 text-slate-600 hover:text-orange-500 transition-all">
+                                <Search size={16} />
+                            </button>
                         </p>
                         {showReasoning && (
-                            <div className="mb-6 p-3 bg-white/5 rounded-lg border border-white/5 text-xs text-slate-400 italic">
-                                "{civ.reasoning}"
+                            <div className="animate-fade-in mb-6 p-6 bg-[#0F1117] rounded-3xl border-2 border-white/5 font-mono text-xs text-slate-500 leading-relaxed relative">
+                                <div className="absolute top-2 right-4 text-[8px] font-bold text-slate-700 uppercase">Cognitive Log</div>
+                                <CornerDownRight size={14} className="inline mr-2 text-orange-500/40" />
+                                {civ.reasoning}
                             </div>
                         )}
-                    </>
-                )}
-
-                {/* Strength Bars - Simplified */}
-                <div className={`space-y-2 ${isCompact ? 'w-full' : 'max-w-sm mb-6'}`}>
-                    <StrengthBar label="Early" value={civ.ratings.early} color="bg-[#5B8CFF]" />
-                    <StrengthBar label="Mid" value={civ.ratings.mid} color="bg-[#7AE3B1]" />
-                    <StrengthBar label="Late" value={civ.ratings.late} color="bg-[#F4C76F]" />
-                </div>
-            </div>
-
-            {/* Expandable Details - Hide in Compact Mode */}
-            {!isCompact && (
-                <div className="pl-[52px]">
-                    <button
-                        onClick={() => setExpanded(!expanded)}
-                        className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-white/5 transition-colors mb-2 text-xs font-bold uppercase tracking-wider text-slate-500 group"
-                    >
-                        <span className="flex items-center gap-2 group-hover:text-slate-300 transition-colors">
-                            Build Order
-                            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                        </span>
-                        <span className="opacity-50 group-hover:opacity-100">{civ.items.length} Items</span>
-                    </button>
-
-                    {expanded && (
-                        <div className="mt-2 space-y-5 animate-fade-in pb-4">
-                            {Object.entries(groupedItems).map(([category, items]) => (
-                                <div key={category}>
-                                    <h4 className="text-[10px] font-bold text-[#5B8CFF] uppercase tracking-widest mb-2 opacity-80 border-b border-[#5B8CFF]/20 pb-1 inline-block">
-                                        {category}
-                                    </h4>
-                                    <ul className="space-y-2">
-                                        {items.map((item, idx) => {
-                                            const isInflated = (item.inflationApplied || 0) > 0;
-                                            const explanation = getCostExplanation(item);
-
-                                            return (
-                                                <li key={idx} className="text-sm flex justify-between items-start group">
-                                                    <Tooltip content={item.description} position="left">
-                                                        <span className="text-slate-300 group-hover:text-white transition-colors decoration-dotted decoration-slate-600 underline-offset-4 cursor-help">{item.name}</span>
-                                                    </Tooltip>
-                                                    <div className="flex items-center font-mono text-xs cursor-help ml-4">
-                                                        {civ.synergies.some(s => s.items.includes(item.name)) && (
-                                                            <Tooltip
-                                                                content={
-                                                                    <div className="p-2 min-w-[200px]">
-                                                                        <div className="flex items-center gap-2 mb-1.5">
-                                                                            <Sparkles size={14} className="text-cyan-400" />
-                                                                            <strong className="text-cyan-400 uppercase tracking-wider text-[10px]">Power Combo</strong>
-                                                                        </div>
-                                                                        <div className="text-white font-bold mb-1">{civ.synergies.find(s => s.items.includes(item.name))?.name}</div>
-                                                                        <div className="text-slate-400 text-[11px] leading-relaxed mb-2">
-                                                                            {civ.synergies.find(s => s.items.includes(item.name))?.description}
-                                                                        </div>
-                                                                        <div className="pt-2 border-t border-white/10 flex flex-wrap gap-1">
-                                                                            {civ.synergies.find(s => s.items.includes(item.name))?.items.map(name => (
-                                                                                <span key={name} className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${name === item.name ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'bg-white/5 text-slate-500 border border-white/5'}`}>
-                                                                                    {name}
-                                                                                </span>
-                                                                            ))}
-                                                                        </div>
-                                                                    </div>
-                                                                }
-                                                            >
-                                                                <span className="mr-2 text-cyan-400 animate-pulse flex items-center gap-1 group/synergy">
-                                                                    <span className="text-[9px] font-black tracking-tighter opacity-0 group-hover/synergy:opacity-100 transition-opacity">COMBO</span>
-                                                                    <Sparkles size={12} />
-                                                                </span>
-                                                            </Tooltip>
-                                                        )}
-                                                        <Tooltip content={explanation}>
-                                                            <div className="flex items-center">
-                                                                {isInflated && (
-                                                                    <span className="text-slate-600 mr-2 line-through decoration-slate-600 opacity-50">
-                                                                        {item.originalCost}
-                                                                    </span>
-                                                                )}
-                                                                <span className={isInflated ? "text-amber-400 font-bold" : "text-slate-500 group-hover:text-slate-300"}>
-                                                                    {item.cost}
-                                                                </span>
-                                                            </div>
-                                                        </Tooltip>
-                                                    </div>
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                    </div>
                 </div>
             )}
 
-            {/* Actions - Pushed to bottom in Compact Mode */}
-            <div className={`mt-6 pt-4 border-t border-white/5 flex justify-between items-center pl-[52px] ${isCompact ? 'mt-auto' : ''}`}>
-                <Tooltip content={isTournament ? "Tournament rules lock all rerolls." : civ.rerollUsed ? "Reroll already expended." : "Forge a new path for this civilization."}>
-                    <button
-                        onClick={onReroll}
-                        disabled={civ.rerollUsed || isTournament}
-                        className={`p-2 -ml-2 rounded-lg transition-colors group flex items-center gap-2 ${civ.rerollUsed || isTournament ? 'text-slate-700 cursor-not-allowed' : 'text-slate-600 hover:text-white hover:bg-white/5'}`}
-                    >
-                        <RefreshCw size={14} className={!(civ.rerollUsed || isTournament) ? "group-hover:rotate-180 transition-transform duration-500" : ""} />
-                        <span className="text-xs font-bold uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity">
-                            {isTournament ? "LOCKED" : (civ.rerollUsed ? "Used" : "Reroll")}
-                        </span>
-                    </button>
-                </Tooltip>
+            {/* Power Distribution Matrix */}
+            <div className={`mb-10 ${isCompact ? 'w-full px-0' : 'pl-4 md:pl-20'}`}>
+                <div className="pl-12 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-[#171A21] p-4 rounded-2xl border-2 border-white/5 flex flex-col gap-2">
+                        <span className="text-[9px] font-bold text-slate-600 uppercase tracking-[0.2em] font-mono italic">Early Phase</span>
+                        <StrengthBar value={civ.ratings.early} color="bg-orange-500" />
+                    </div>
+                    <div className="bg-[#171A21] p-4 rounded-2xl border-2 border-white/5 flex flex-col gap-2">
+                        <span className="text-[9px] font-bold text-slate-600 uppercase tracking-[0.2em] font-mono italic">Mid Phase</span>
+                        <StrengthBar value={civ.ratings.mid} color="bg-orange-500" />
+                    </div>
+                    <div className="bg-[#171A21] p-4 rounded-2xl border-2 border-white/5 flex flex-col gap-2">
+                        <span className="text-[9px] font-bold text-slate-600 uppercase tracking-[0.2em] font-mono italic">Late Phase</span>
+                        <StrengthBar value={civ.ratings.late} color="bg-orange-500" />
+                    </div>
+                </div>
+            </div>
+
+            {/* Item Allocation Table */}
+            {!isCompact && (
+                <div className="pl-4 md:pl-20 mb-6 font-mono">
+                    <div className="pl-12">
+                        <button
+                            onClick={() => setExpanded(!expanded)}
+                            className="w-full flex items-center justify-between p-4 rounded-2xl hover:bg-white/5 transition-all text-sm font-bold uppercase tracking-[0.3em] text-slate-600 group border-2 border-transparent hover:border-white/5"
+                        >
+                            <span className="flex items-center gap-4 group-hover:text-slate-400">
+                                <ListChecks size={18} className="text-orange-500/40" />
+                                Allocated Data [{civ.items.length}]
+                                {expanded ? <ChevronDown size={14} className="ml-2" /> : <ChevronRight size={14} className="ml-2" />}
+                            </span>
+                        </button>
+
+                        {expanded && (
+                            <div className="mt-4 space-y-8 animate-fade-in p-6 bg-[#171A21] rounded-[2.5rem] border-2 border-white/5">
+                                {Object.entries(groupedItems).map(([category, items]) => (
+                                    <div key={category} className="space-y-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-px flex-1 bg-white/5" />
+                                            <h4 className="text-[10px] font-bold text-orange-500/60 uppercase tracking-[0.4em]">
+                                                {category}
+                                            </h4>
+                                            <div className="h-px flex-1 bg-white/5" />
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-1">
+                                            {items.map((item, idx) => {
+                                                const isInflated = (item.inflationApplied || 0) > 0;
+                                                const explanation = getCostExplanation(item);
+                                                const hasSynergy = civ.synergies.some(s => s.items.includes(item.name));
+
+                                                return (
+                                                    <div key={idx} className="flex justify-between items-center p-3 px-5 rounded-xl bg-[#0F1117] hover:bg-white/5 transition-all group border-2 border-transparent hover:border-white/5">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className={`w-1.5 h-1.5 rounded-full ${hasSynergy ? 'bg-cyan-400 animate-pulse' : 'bg-slate-800'}`} />
+                                                            <Tooltip content={item.description} position="left">
+                                                                <span className="text-sm font-bold text-slate-500 group-hover:text-slate-200 transition-all cursor-help">{item.name}</span>
+                                                            </Tooltip>
+                                                        </div>
+                                                        <div className="flex items-center gap-4">
+                                                            {hasSynergy && (
+                                                                <Tooltip content={civ.synergies.find(s => s.items.includes(item.name))?.description}>
+                                                                    <div className="bg-cyan-500/10 text-cyan-400 text-[9px] font-bold italic px-2 py-0.5 rounded border border-cyan-500/20 tracking-tight shadow-[0_0_10px_rgba(34,211,238,0.1)]">
+                                                                        Power Combo++
+                                                                    </div>
+                                                                </Tooltip>
+                                                            )}
+                                                            <Tooltip content={explanation}>
+                                                                <div className="flex items-center gap-2">
+                                                                    {isInflated && <span className="text-[10px] text-slate-700 line-through">+{item.inflationApplied}</span>}
+                                                                    <span className={`text-xs font-bold ${isInflated ? 'text-amber-500' : 'text-slate-600'}`}>{item.cost}PT</span>
+                                                                </div>
+                                                            </Tooltip>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Control Interface */}
+            <div className={`mt-8 pt-8 border-t-2 border-white/5 flex justify-between items-center relative z-10 ${isCompact ? 'mt-auto' : 'pl-4 md:pl-20'}`}>
+                <div className={isCompact ? '' : 'pl-12'}>
+                    <Tooltip content={isTournament ? "Tournament Lock Active" : civ.rerollUsed ? "Reroll Expended" : "Regenerate Path"}>
+                        <button
+                            onClick={onReroll}
+                            disabled={civ.rerollUsed || isTournament}
+                            className={`flex items-center gap-3 px-6 py-3 rounded-2xl transition-all font-mono text-[10px] font-bold uppercase tracking-[0.2em] border-2 ${civ.rerollUsed || isTournament ? 'bg-white/5 border-transparent text-slate-800 cursor-not-allowed opacity-40' : 'bg-[#171A21] border-white/10 text-slate-500 hover:text-slate-100 hover:border-orange-500/50 hover:bg-orange-600/10 active:scale-95 shadow-xl'}`}
+                        >
+                            <RefreshCw size={14} className={!(civ.rerollUsed || isTournament) ? "animate-spin-slow" : ""} />
+                            {isTournament ? "System Lock" : (civ.rerollUsed ? "Used" : "Reroll")}
+                        </button>
+                    </Tooltip>
+                </div>
 
                 <div className="flex items-center gap-4">
-                    {!isCompact && (
-                        <button
-                            onClick={() => {
-                                handleCopy();
-                                audioService.playInteraction();
-                            }}
-                            className="text-slate-600 hover:text-[#5B8CFF] transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
-                        >
-                            {copied ? <Check size={14} className="text-emerald-400" /> : <ListChecks size={14} />}
-                            {copied ? "Copied" : "Checklist"}
-                        </button>
-                    )}
-                    {!isCompact && (
-                        <Tooltip content="Prepare a high-resolution scroll of your civilization.">
-                            <button
-                                onClick={() => {
-                                    handleDownload();
-                                    audioService.playInteraction();
-                                }}
-                                disabled={isDownloading}
-                                className="text-slate-600 hover:text-[#5B8CFF] transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
-                            >
-                                {isDownloading ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
-                                {isDownloading ? "..." : "Image"}
-                            </button>
-                        </Tooltip>
-                    )}
+                    <button
+                        onClick={() => { handleCopy(); audioService.playInteraction(); }}
+                        className="p-3 px-6 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-600 hover:text-slate-400 transition-all border-2 border-transparent hover:border-white/5 active:scale-95"
+                    >
+                        {copied ? <Check size={18} className="text-emerald-400" /> : <ListChecks size={18} />}
+                    </button>
+                    <button
+                        onClick={() => { handleDownload(); audioService.playInteraction(); }}
+                        disabled={isDownloading}
+                        className="p-3 px-6 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-600 hover:text-slate-400 transition-all border-2 border-transparent hover:border-white/5 active:scale-95 disabled:opacity-30"
+                    >
+                        {isDownloading ? <RefreshCw size={18} className="animate-spin" /> : <Download size={18} />}
+                    </button>
                 </div>
             </div>
         </div>
