@@ -1,8 +1,15 @@
 import React from 'react';
+import { audioService } from '../services/audio';
 
 export const DjonStNixLogo: React.FC<{ className?: string }> = ({ className }) => {
     return (
-        <div className={`relative inline-block ${className}`}>
+        <a
+            href="https://www.youtube.com/@Djonluc"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => audioService.playInteraction()}
+            className={`relative inline-block hover:scale-105 transition-transform duration-300 ${className}`}
+        >
             <svg
                 width="240"
                 height="60"
@@ -11,6 +18,7 @@ export const DjonStNixLogo: React.FC<{ className?: string }> = ({ className }) =
                 xmlns="http://www.w3.org/2000/svg"
                 className="filter drop-shadow-[0_0_8px_rgba(91,140,255,0.8)]"
             >
+                {/* ... existing SVG content ... */}
                 {/* Animated Background Path */}
                 <path
                     d="M10 10H230V50H10V10Z"
@@ -79,6 +87,6 @@ export const DjonStNixLogo: React.FC<{ className?: string }> = ({ className }) =
           93% { opacity: 0; transform: translate(0); }
         }
       `}} />
-        </div>
+        </a>
     );
 };

@@ -4,6 +4,7 @@ import { generateCivForPlayer, SeededRNG } from './services/generator';
 import { encodeConfig, decodeConfig } from './services/share';
 import { SetupScreen } from './components/SetupScreen';
 import { CivCard } from './components/CivCard';
+import { audioService } from './services/audio';
 import { DEFAULT_NAMES, MAP_TYPES, PRESET_MODES, POINT_MODES, EPOCHS } from './constants';
 import { Download, Loader2, Globe, Scale, Hourglass, LayoutGrid, Columns, Trophy, Link as LinkIcon, Check } from 'lucide-react';
 import { DjonStNixLogo } from './components/DjonStNixLogo';
@@ -43,6 +44,7 @@ const App: React.FC = () => {
     const [linkCopied, setLinkCopied] = useState(false);
 
     const updateConfig = (updates: Partial<AppConfig>) => {
+        audioService.playInteraction();
         setConfig(prev => ({ ...prev, ...updates }));
     };
 
@@ -79,11 +81,29 @@ const App: React.FC = () => {
         }
     }, []);
 
-    const handleForge = (cfgOverride?: AppConfig) => {
-        const finalConfig = cfgOverride ? { ...cfgOverride } : { ...config };
+    // Initial mount and sound check
+    useEffect(() => {
+        const handleInitialClick = () => {
+            audioService.playIntroGrunt();
+            document.removeEventListener('click', handleInitialClick);
+        };
+        document.addEventListener('click', handleInitialClick);
+        return () => document.removeEventListener('click', handleInitialClick);
+    }, []);
 
+    const handleForge = async (cfgOverride?: AppConfig) => {
         setIsForging(true);
         setIsForged(false);
+        audioService.playForgeClang();
+        audioService.playIntroGrunt();
+        audioService.startFireCrackle();
+
+        // Random unit sounds during forging
+        const soundInterval = setInterval(() => {
+            if (Math.random() > 0.5) audioService.playRandomUnitSound();
+        }, 800);
+
+        const finalConfig = cfgOverride ? { ...cfgOverride } : { ...config };
 
         // 1. Resolve Random Rules using Seeded RNG (Match-level reproducibility)
         const matchRng = new SeededRNG(`match-rules-${finalConfig.seed}`);
@@ -137,6 +157,8 @@ const App: React.FC = () => {
             setCivs(generated);
             setIsForged(true);
             setIsForging(false);
+            audioService.stopFireCrackle();
+            clearInterval(soundInterval);
 
             setTimeout(() => {
                 document.getElementById('results-feed')?.scrollIntoView({ behavior: 'smooth' });
@@ -180,6 +202,7 @@ const App: React.FC = () => {
 
     const handleShareLink = () => {
         if (!resolvedConfig) return;
+        audioService.playInteraction();
         const encoded = encodeConfig(config); // Share the ORIGINAL config (with the seed)
         const url = `${window.location.origin}${window.location.pathname}?m=${encoded}`;
         navigator.clipboard.writeText(url);
@@ -187,46 +210,112 @@ const App: React.FC = () => {
         setTimeout(() => setLinkCopied(false), 2000);
     };
 
+    const resetApp = () => {
+        audioService.playInteraction();
+        setIsForged(false);
+        setResolvedConfig(null);
+        setCivs([]);
+        window.history.replaceState({}, '', window.location.pathname);
+    };
+
     return (
         <div className="min-h-screen bg-[#0F1117] text-slate-200 pb-20 font-sans">
             <div className="max-w-4xl mx-auto px-4 pt-10 md:pt-16 space-y-12">
 
                 {/* Header */}
-                <div className="text-center space-y-3 mb-8">
-                    <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-white">Epoch Forge</h1>
-                    <div className="flex flex-col items-center gap-1 mb-2">
-                        <DjonStNixLogo className="scale-75 md:scale-90" />
+                <div className="text-center mb-10 relative">
+                    <div className="relative inline-block">
+                        {/* Premium "Epoch Forge" Logo */}
+                        <button
+                            onClick={resetApp}
+                            className="relative px-8 py-2 block group hover:scale-[1.02] transition-transform"
+                        >
+                            <h1
+                                className="text-6xl md:text-8xl font-black italic uppercase tracking-tighter bg-gradient-to-b from-amber-200 via-orange-400 to-red-600 bg-clip-text text-transparent filter drop-shadow-[0_8px_8px_rgba(0,0,0,0.6)] select-none py-2"
+                                style={{ fontFamily: "'Inter', sans-serif" }}
+                            >
+                                Epoch Forge
+                            </h1>
+                            {/* Intense Heat Glow */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-orange-500/40 to-transparent blur-3xl opacity-80 -z-10 group-hover:opacity-100 transition-opacity animate-pulse" />
+
+                            {/* Logo Embers/Sparks */}
+                            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                                {[...Array(20)].map((_, i) => (
+                                    <div
+                                        key={i}
+                                        className="absolute bottom-0 w-1 h-1 bg-gradient-to-t from-orange-400 to-amber-200 rounded-full animate-flame-spark"
+                                        style={{
+                                            left: `${Math.random() * 100}%`,
+                                            animationDelay: `${Math.random() * 4}s`,
+                                            animationDuration: `${1.5 + Math.random() * 2.5}s`,
+                                            opacity: 0.6 + Math.random() * 0.4
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        </button>
                     </div>
-                    <p className={`font-medium text-lg transition-colors duration-500 ${isForged ? 'text-[#5B8CFF]' : 'text-slate-500'}`}>
+                    <div className="flex flex-col items-center gap-1 mt-6">
+                        <DjonStNixLogo className="scale-75 md:scale-90 opacity-40 hover:opacity-100 transition-opacity cursor-default" />
+                    </div>
+                    <p className={`font-bold text-sm tracking-[0.3em] uppercase transition-colors duration-700 mt-4 ${isForged ? 'text-amber-500' : 'text-slate-600'}`}>
                         {getHeaderText()}
                     </p>
                 </div>
 
                 {/* Setup Section (Lobby) - De-emphasize when forged */}
-                <div className={`transition-all duration-1000 ${isForged || isForging ? 'opacity-20 blur-[2px] grayscale pointer-events-none' : ''}`}>
+                <div className={`transition-all duration-1000 ${isForged || isForging ? 'opacity-10 blur-[4px] grayscale pointer-events-none' : ''}`}>
                     <SetupScreen config={config} onUpdate={updateConfig} />
                 </div>
 
                 {/* The Forge Button / Status */}
                 {!isForged && (
-                    <div className="flex flex-col items-center justify-center pt-8 pb-4 h-32">
+                    <div className="flex flex-col items-center justify-center pt-24 pb-12 w-full">
                         {isForging ? (
-                            <div className="flex flex-col items-center animate-pulse space-y-4">
-                                <Loader2 className="animate-spin text-[#5B8CFF]" size={40} />
-                                <span className="text-lg font-bold text-white tracking-widest uppercase">Forging Civilizations...</span>
+                            <div className="flex flex-col items-center animate-pulse space-y-8">
+                                <div className="relative">
+                                    <Loader2 className="animate-spin text-orange-500" size={80} />
+                                    <div className="absolute inset-0 bg-orange-500/30 blur-3xl rounded-full" />
+                                </div>
+                                <span className="text-3xl font-black text-white tracking-[0.4em] uppercase italic">Forging Results...</span>
                             </div>
                         ) : (
-                            <>
+                            <div className="flex flex-col items-center gap-12 w-full">
                                 <button
                                     onClick={() => handleForge()}
-                                    className="group relative inline-flex items-center justify-center px-12 py-6 font-black text-white transition-all duration-500 bg-gradient-to-br from-[#5B8CFF] via-[#4374e8] to-[#3b66d1] text-xl rounded-2xl hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_rgba(91,140,255,0.3)] hover:shadow-[0_0_50px_rgba(91,140,255,0.6)] border border-white/10 hover:border-white/20 ring-1 ring-white/10"
+                                    className="group relative flex items-center justify-center w-full max-w-lg h-56 font-black text-white transition-all duration-700 bg-gradient-to-br from-[#12141C] to-[#0A0B10] rounded-[50px] hover:scale-[1.03] active:scale-[0.97] border-2 border-white/5 hover:border-orange-500/40 shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden"
                                 >
-                                    <span className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                                    <span className="mr-3 text-2xl group-hover:scale-110 transition-transform duration-300">🔥</span>
-                                    <span className="tracking-widest drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">FORGE CIVILIZATIONS</span>
+                                    {/* Animated Glowing Background */}
+                                    <div className="absolute inset-0 bg-gradient-to-br from-orange-600/30 via-transparent to-red-600/30 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+
+                                    {/* Button Embers */}
+                                    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                                        {[...Array(15)].map((_, i) => (
+                                            <div
+                                                key={i}
+                                                className="absolute bottom-[-10%] w-1.5 h-1.5 bg-gradient-to-t from-orange-500 to-amber-300 rounded-full animate-flame-spark"
+                                                style={{
+                                                    left: `${Math.random() * 100}%`,
+                                                    animationDelay: `${Math.random() * 5}s`,
+                                                    animationDuration: `${1 + Math.random() * 2}s`,
+                                                    opacity: 0.4 + Math.random() * 0.4
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+
+                                    <div className="relative flex flex-col items-center justify-center pt-4">
+                                        <span className="text-base tracking-[0.8em] font-bold text-orange-500/50 mb-3 group-hover:text-orange-400 transition-colors uppercase">Ignite The</span>
+                                        <div className="relative">
+                                            <span className="text-8xl md:text-9xl tracking-tighter font-black bg-gradient-to-r from-orange-400 via-amber-200 to-orange-400 bg-clip-text text-transparent drop-shadow-[0_8px_8px_rgba(0,0,0,0.8)]">FORGE</span>
+                                            {/* Molten Glow Effect */}
+                                            <div className="absolute inset-0 blur-2xl bg-orange-500/10 -z-10 group-hover:bg-orange-500/30 transition-colors" />
+                                        </div>
+                                    </div>
                                 </button>
-                                <p className="mt-5 text-[10px] font-bold text-slate-600 uppercase tracking-[0.25em] transition-colors group-hover:text-[#5B8CFF]">Ready when you are</p>
-                            </>
+                                <p className="text-sm font-black text-slate-700 uppercase tracking-[0.8em] transition-colors group-hover:text-amber-900/50 animate-pulse">Awaiting your command</p>
+                            </div>
                         )}
                     </div>
                 )}

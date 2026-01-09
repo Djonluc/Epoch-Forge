@@ -5,7 +5,7 @@ export enum GamePhase {
     LATE = 'Late'
 }
 
-export type BoostCategory = 
+export type BoostCategory =
     | "Civ – Economy"
     | "Civ – Buildings, Walls & Towers"
     | "Civ – General"
@@ -40,6 +40,7 @@ export interface CivPower {
     minEpoch: number; // 1 means All usually, but we track specific start
     maxEpoch: number; // 15 means All/up to end
     tags: GamePhase[];
+    description?: string;
 }
 
 export interface GeneratedItem {
@@ -49,6 +50,7 @@ export interface GeneratedItem {
     type: 'boost' | 'power';
     category?: BoostCategory;
     inflationApplied?: number;
+    description?: string;
 }
 
 export type Difficulty = 'Beginner' | 'Intermediate' | 'Advanced';
@@ -72,6 +74,13 @@ export interface PlayerCiv {
     reasoning: string;
     warnings: string[]; // Map-aware warnings
     rerollUsed: boolean;
+    synergies: SynergyRule[];
+}
+
+export interface SynergyRule {
+    name: string;
+    items: string[];
+    description: string;
 }
 
 export type PresetMode = 'Casual' | 'Tournament' | 'Chaos' | 'Historical';
@@ -85,7 +94,7 @@ export interface AppConfig {
     startEpoch: number;
     endEpoch: number;
     seed: string;
-    
+
     // Active / Default Settings
     preset: PresetMode;
     pointUsage: PointUsageMode;

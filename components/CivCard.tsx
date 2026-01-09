@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { toPng } from 'html-to-image';
 import { PlayerCiv, GeneratedItem, Difficulty } from '../types';
 import { HEADINGS } from '../constants';
 import { StrengthBar } from './StrengthBar';
+import { Tooltip } from './Tooltip';
+import { audioService } from '../services/audio';
 import {
     RefreshCw,
     ChevronDown,
@@ -11,7 +14,9 @@ import {
     Eye,
     HelpCircle,
     AlertTriangle,
-    ListChecks
+    ListChecks,
+    Download,
+    Sparkles
 } from 'lucide-react';
 
 interface Props {
@@ -26,6 +31,8 @@ export const CivCard: React.FC<Props> = ({ civ, onReroll, index, isCompact = fal
     const [expanded, setExpanded] = useState(false);
     const [copied, setCopied] = useState(false);
     const [showReasoning, setShowReasoning] = useState(false);
+    const cardRef = useRef<HTMLDivElement>(null);
+    const [isDownloading, setIsDownloading] = useState(false);
 
     // Group items
     const groupedItems: Record<string, GeneratedItem[]> = {};
@@ -51,6 +58,28 @@ export const CivCard: React.FC<Props> = ({ civ, onReroll, index, isCompact = fal
         navigator.clipboard.writeText(text);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+    };
+
+    const handleDownload = async () => {
+        if (!cardRef.current) return;
+        setIsDownloading(true);
+        try {
+            const dataUrl = await toPng(cardRef.current, {
+                cacheBust: true,
+                backgroundColor: '#0F1117',
+                style: {
+                    transform: 'scale(1)',
+                }
+            });
+            const link = document.createElement('a');
+            link.download = `epoch-forge-${civ.playerName.toLowerCase()}-${civ.powerScore}.png`;
+            link.href = dataUrl;
+            link.click();
+        } catch (err) {
+            console.error('Download failed:', err);
+        } finally {
+            setIsDownloading(false);
+        }
     };
 
     // Determine Accent Color based on Primary Category
@@ -116,7 +145,10 @@ export const CivCard: React.FC<Props> = ({ civ, onReroll, index, isCompact = fal
     const tiltClass = isCompact ? '' : (index % 2 === 0 ? "hand-dealt-0" : "hand-dealt-1");
 
     return (
-        <div className={`bg-[#171A21] rounded-3xl p-6 md:p-7 w-full relative overflow-hidden transition-all hover:scale-[1.01] hover:shadow-2xl hover:z-10 border-l-4 ${accentClass} ${tiltClass} ${isCompact ? 'flex flex-col h-full' : ''}`}>
+        <div
+            ref={cardRef}
+            className={`bg-[#171A21] rounded-3xl p-6 md:p-7 w-full relative overflow-hidden transition-all hover:scale-[1.01] hover:shadow-2xl hover:z-10 border-l-4 ${accentClass} ${tiltClass} ${isCompact ? 'flex flex-col h-full' : ''}`}
+        >
 
             {/* Header */}
             <div className="flex justify-between items-start mb-4">
@@ -132,10 +164,12 @@ export const CivCard: React.FC<Props> = ({ civ, onReroll, index, isCompact = fal
                             </div>
                             <div className="w-1 h-1 bg-slate-700 rounded-full"></div>
                             {/* Difficulty Indicator */}
-                            <div className="flex items-center gap-1.5" title={`${civ.difficulty} Difficulty`}>
-                                <div className={`w-2 h-2 rounded-full ${getDifficultyColor(civ.difficulty)} shadow-sm`}></div>
-                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider hidden sm:block">{civ.difficulty}</span>
-                            </div>
+                            <Tooltip content={<div className="p-1"><strong>{civ.difficulty} Difficulty</strong><br />Complexity of this build.</div>}>
+                                <div className="flex items-center gap-1.5">
+                                    <div className={`w-2 h-2 rounded-full ${getDifficultyColor(civ.difficulty)} shadow-sm`}></div>
+                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider hidden sm:block">{civ.difficulty}</span>
+                                </div>
+                            </Tooltip>
                         </div>
                     </div>
                 </div>
@@ -164,13 +198,14 @@ export const CivCard: React.FC<Props> = ({ civ, onReroll, index, isCompact = fal
                     <>
                         <p className="text-base text-slate-300 leading-relaxed font-medium opacity-90 mb-6">
                             {civ.summary}
-                            <button
-                                onClick={() => setShowReasoning(!showReasoning)}
-                                className="inline-flex items-center ml-2 text-slate-600 hover:text-[#5B8CFF] transition-colors"
-                                title="Why this generation?"
-                            >
-                                <HelpCircle size={14} />
-                            </button>
+                            <Tooltip content="The AI's tactical reasoning for these choices.">
+                                <button
+                                    onClick={() => setShowReasoning(!showReasoning)}
+                                    className="inline-flex items-center ml-2 text-slate-600 hover:text-[#5B8CFF] transition-colors"
+                                >
+                                    <HelpCircle size={14} />
+                                </button>
+                            </Tooltip>
                         </p>
                         {showReasoning && (
                             <div className="mb-6 p-3 bg-white/5 rounded-lg border border-white/5 text-xs text-slate-400 italic">
@@ -216,19 +251,36 @@ export const CivCard: React.FC<Props> = ({ civ, onReroll, index, isCompact = fal
 
                                             return (
                                                 <li key={idx} className="text-sm flex justify-between items-start group">
-                                                    <span className="text-slate-300 group-hover:text-white transition-colors">{item.name}</span>
-                                                    <div
-                                                        className="flex items-center font-mono text-xs cursor-help ml-4"
-                                                        title={explanation}
-                                                    >
-                                                        {isInflated && (
-                                                            <span className="text-slate-600 mr-2 line-through decoration-slate-600 opacity-50">
-                                                                {item.originalCost}
-                                                            </span>
+                                                    <Tooltip content={item.description} position="left">
+                                                        <span className="text-slate-300 group-hover:text-white transition-colors decoration-dotted decoration-slate-600 underline-offset-4 cursor-help">{item.name}</span>
+                                                    </Tooltip>
+                                                    <div className="flex items-center font-mono text-xs cursor-help ml-4">
+                                                        {civ.synergies.some(s => s.items.includes(item.name)) && (
+                                                            <Tooltip
+                                                                content={
+                                                                    <div className="p-1">
+                                                                        <strong className="text-cyan-400">{civ.synergies.find(s => s.items.includes(item.name))?.name}</strong>
+                                                                        <div className="mt-1 opacity-80">{civ.synergies.find(s => s.items.includes(item.name))?.description}</div>
+                                                                    </div>
+                                                                }
+                                                            >
+                                                                <span className="mr-2 text-cyan-400 animate-pulse">
+                                                                    <Sparkles size={12} />
+                                                                </span>
+                                                            </Tooltip>
                                                         )}
-                                                        <span className={isInflated ? "text-amber-400 font-bold" : "text-slate-500 group-hover:text-slate-300"}>
-                                                            {item.cost}
-                                                        </span>
+                                                        <Tooltip content={explanation}>
+                                                            <div className="flex items-center">
+                                                                {isInflated && (
+                                                                    <span className="text-slate-600 mr-2 line-through decoration-slate-600 opacity-50">
+                                                                        {item.originalCost}
+                                                                    </span>
+                                                                )}
+                                                                <span className={isInflated ? "text-amber-400 font-bold" : "text-slate-500 group-hover:text-slate-300"}>
+                                                                    {item.cost}
+                                                                </span>
+                                                            </div>
+                                                        </Tooltip>
                                                     </div>
                                                 </li>
                                             );
@@ -243,27 +295,48 @@ export const CivCard: React.FC<Props> = ({ civ, onReroll, index, isCompact = fal
 
             {/* Actions - Pushed to bottom in Compact Mode */}
             <div className={`mt-6 pt-4 border-t border-white/5 flex justify-between items-center pl-[52px] ${isCompact ? 'mt-auto' : ''}`}>
-                <button
-                    onClick={onReroll}
-                    disabled={civ.rerollUsed || isTournament}
-                    className={`p-2 -ml-2 rounded-lg transition-colors group flex items-center gap-2 ${civ.rerollUsed || isTournament ? 'text-slate-700 cursor-not-allowed' : 'text-slate-600 hover:text-white hover:bg-white/5'}`}
-                    title={isTournament ? "Locked by Tournament Rules" : civ.rerollUsed ? "Reroll already used" : "Reroll this civ"}
-                >
-                    <RefreshCw size={14} className={!(civ.rerollUsed || isTournament) ? "group-hover:rotate-180 transition-transform duration-500" : ""} />
-                    <span className="text-xs font-bold uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity">
-                        {isTournament ? "LOCKED" : (civ.rerollUsed ? "Used" : "Reroll")}
-                    </span>
-                </button>
-
-                {!isCompact && (
+                <Tooltip content={isTournament ? "Tournament rules lock all rerolls." : civ.rerollUsed ? "Reroll already expended." : "Forge a new path for this civilization."}>
                     <button
-                        onClick={handleCopy}
-                        className="text-slate-600 hover:text-[#5B8CFF] transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
+                        onClick={onReroll}
+                        disabled={civ.rerollUsed || isTournament}
+                        className={`p-2 -ml-2 rounded-lg transition-colors group flex items-center gap-2 ${civ.rerollUsed || isTournament ? 'text-slate-700 cursor-not-allowed' : 'text-slate-600 hover:text-white hover:bg-white/5'}`}
                     >
-                        {copied ? <Check size={14} className="text-emerald-400" /> : <ListChecks size={14} />}
-                        {copied ? "Copied" : "Checklist"}
+                        <RefreshCw size={14} className={!(civ.rerollUsed || isTournament) ? "group-hover:rotate-180 transition-transform duration-500" : ""} />
+                        <span className="text-xs font-bold uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity">
+                            {isTournament ? "LOCKED" : (civ.rerollUsed ? "Used" : "Reroll")}
+                        </span>
                     </button>
-                )}
+                </Tooltip>
+
+                <div className="flex items-center gap-4">
+                    {!isCompact && (
+                        <button
+                            onClick={() => {
+                                handleCopy();
+                                audioService.playInteraction();
+                            }}
+                            className="text-slate-600 hover:text-[#5B8CFF] transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
+                        >
+                            {copied ? <Check size={14} className="text-emerald-400" /> : <ListChecks size={14} />}
+                            {copied ? "Copied" : "Checklist"}
+                        </button>
+                    )}
+                    {!isCompact && (
+                        <Tooltip content="Prepare a high-resolution scroll of your civilization.">
+                            <button
+                                onClick={() => {
+                                    handleDownload();
+                                    audioService.playInteraction();
+                                }}
+                                disabled={isDownloading}
+                                className="text-slate-600 hover:text-[#5B8CFF] transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
+                            >
+                                {isDownloading ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
+                                {isDownloading ? "..." : "Image"}
+                            </button>
+                        </Tooltip>
+                    )}
+                </div>
             </div>
         </div>
     );

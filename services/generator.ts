@@ -1,5 +1,5 @@
-import { BOOSTS, CIV_POWERS, HEADINGS } from '../constants';
-import { Boost, BoostCategory, CivPower, GeneratedItem, PlayerCiv, AppConfig, Heading, GamePhase, MapType, Difficulty, Archetype } from '../types';
+import { BOOSTS, CIV_POWERS, HEADINGS, SYNERGIES } from '../constants';
+import { Boost, BoostCategory, CivPower, GeneratedItem, PlayerCiv, AppConfig, Heading, GamePhase, MapType, Difficulty, Archetype, SynergyRule } from '../types';
 
 export class SeededRNG {
     private seed: number;
@@ -86,7 +86,7 @@ const getArchetypeBias = (item: Boost | CivPower, archetype: Archetype): number 
             if (cat.includes('Ships') || name.includes('Fishing')) weight = 1.5;
             break;
         case 'Balanced':
-             // Slight penalty to extreme specialization items to encourage spread
+            // Slight penalty to extreme specialization items to encourage spread
             if (cat.includes('Cyber') || cat.includes('Religion')) weight = 0.8;
             break;
     }
@@ -94,8 +94,8 @@ const getArchetypeBias = (item: Boost | CivPower, archetype: Archetype): number 
 };
 
 export const generateCivForPlayer = (
-    config: AppConfig, 
-    playerName: string, 
+    config: AppConfig,
+    playerName: string,
     playerIndex: number,
     forceSeed?: string,
     ensurePower: boolean = false
@@ -104,7 +104,7 @@ export const generateCivForPlayer = (
     const seedString = forceSeed || `${config.seed}-${playerName}-${playerIndex}`;
     const rng = new SeededRNG(seedString);
     const archetype = config.playerArchetypes[playerIndex] || 'Random';
-    
+
     let points = 100;
     const items: GeneratedItem[] = [];
     const categoryCounts: Record<string, number> = {};
@@ -124,7 +124,7 @@ export const generateCivForPlayer = (
         return heading.minEpoch <= config.endEpoch;
     });
 
-    const validPowers = CIV_POWERS.filter(p => 
+    const validPowers = CIV_POWERS.filter(p =>
         p.minEpoch <= config.endEpoch // Power starts before game ends
     );
 
@@ -132,22 +132,23 @@ export const generateCivForPlayer = (
     if (ensurePower) {
         // Filter powers that fit map/epoch and cost <= 100
         const affordablePowers = validPowers.filter(p => {
-             if (getMapWeight(p, config.mapType) === 0) return false;
-             return p.cost <= points;
+            if (getMapWeight(p, config.mapType) === 0) return false;
+            return p.cost <= points;
         });
 
         if (affordablePowers.length > 0) {
-             const weights = affordablePowers.map(p => getMapWeight(p, config.mapType) * getArchetypeBias(p, archetype));
-             const p = rng.pickWeighted(affordablePowers, weights);
-             
-             items.push({
+            const weights = affordablePowers.map(p => getMapWeight(p, config.mapType) * getArchetypeBias(p, archetype));
+            const p = rng.pickWeighted(affordablePowers, weights);
+
+            items.push({
                 name: p.name,
                 cost: p.cost,
                 originalCost: p.cost,
                 type: 'power',
-             });
-             points -= p.cost;
-             takenItems.add(p.name);
+                description: p.description
+            });
+            points -= p.cost;
+            takenItems.add(p.name);
         }
     }
 
@@ -161,14 +162,14 @@ export const generateCivForPlayer = (
 
     // Mode Adjustments
     let loopLimit = 0;
-    const MAX_LOOPS = 500; 
+    const MAX_LOOPS = 500;
 
     while (points > 0 && loopLimit < MAX_LOOPS) {
         loopLimit++;
-        
+
         // Calculate all currently affordable options
         const affordableBoosts = validBoosts.filter(b => {
-            if (takenItems.has(b.name)) return false; 
+            if (takenItems.has(b.name)) return false;
             if (getMapWeight(b, config.mapType) === 0) return false; // Map Exclusion
             return getBoostCost(b) <= points;
         });
@@ -188,10 +189,10 @@ export const generateCivForPlayer = (
         if (options.length === 0) break;
 
         // --- Point Usage Logic ---
-        
+
         // Efficient: Stop if <= 5 points left (Avoid scraping bottom)
         if (config.pointUsage === 'Efficient' && points <= 5) break;
-        
+
         // Loose: Stop if <= 15 points left (More random/casual)
         if (config.pointUsage === 'Loose' && points <= 15) break;
 
@@ -199,7 +200,7 @@ export const generateCivForPlayer = (
         // If we have < 10 points, prioritize items that get us closer to 0 or hit 0 exactly.
         // If no item hits 0, it falls through to normal selection (best effort).
         let candidateOptions = options;
-        
+
         if (config.pointUsage === 'Exact' && points < 20) {
             const exactMatches = options.filter(o => o.cost === points);
             if (exactMatches.length > 0) {
@@ -210,16 +211,16 @@ export const generateCivForPlayer = (
         // Apply Map Weights + Preset Modifiers
         const weights = candidateOptions.map(o => {
             let w = getMapWeight(o.item, config.mapType);
-            
+
             // Apply Archetype Bias (Soft Nudge)
             w *= getArchetypeBias(o.item, archetype);
 
             // PRESET: Historical (Fewer AoC powers, more stat boosts)
             if (config.preset === 'Historical') {
-                if (o.type === 'power') w *= 0.2; 
+                if (o.type === 'power') w *= 0.2;
                 if (o.type === 'boost') w *= 1.2;
             }
-            
+
             // PRESET: Chaos (Extreme builds - Momentum)
             if (config.preset === 'Chaos' && o.type === 'boost' && o.item.category) {
                 const c = categoryCounts[o.item.category] || 0;
@@ -228,9 +229,9 @@ export const generateCivForPlayer = (
 
             // PRESET: Tournament (Tight balance, low variance)
             if (config.preset === 'Tournament') {
-                 // Slight bias towards efficient/standard play
-                 // We can slightly punish extremely high inflation items to keep it grounded
-                 if (o.type === 'boost' && o.cost > 20) w *= 0.8;
+                // Slight bias towards efficient/standard play
+                // We can slightly punish extremely high inflation items to keep it grounded
+                if (o.type === 'boost' && o.cost > 20) w *= 0.8;
             }
 
             return w;
@@ -243,7 +244,7 @@ export const generateCivForPlayer = (
             const heading = HEADINGS.find(h => h.name === b.category)!;
             const count = categoryCounts[b.category] || 0;
             const cost = selection.cost;
-            
+
             items.push({
                 name: b.name,
                 cost: cost,
@@ -263,6 +264,7 @@ export const generateCivForPlayer = (
                 cost: p.cost,
                 originalCost: p.cost,
                 type: 'power',
+                description: p.description
             });
             points -= p.cost;
             takenItems.add(p.name);
@@ -271,7 +273,7 @@ export const generateCivForPlayer = (
 
     // Ratings Calculation
     const ratings = { early: 0, mid: 0, late: 0 };
-    
+
     items.forEach(item => {
         let tags: GamePhase[] = [];
         if (item.type === 'boost') {
@@ -283,15 +285,15 @@ export const generateCivForPlayer = (
         }
 
         tags.forEach(t => {
-            if(t === GamePhase.EARLY) ratings.early += item.cost;
-            if(t === GamePhase.MID) ratings.mid += item.cost;
-            if(t === GamePhase.LATE) ratings.late += item.cost;
+            if (t === GamePhase.EARLY) ratings.early += item.cost;
+            if (t === GamePhase.MID) ratings.mid += item.cost;
+            if (t === GamePhase.LATE) ratings.late += item.cost;
         });
     });
 
     // Normalize ratings to 0-5 stars roughly
     const normalize = (val: number) => Math.min(5, Math.max(1, Math.round(val / 15)));
-    
+
     const finalRatings = {
         early: normalize(ratings.early),
         mid: normalize(ratings.mid),
@@ -350,7 +352,7 @@ export const generateCivForPlayer = (
     if (primary && primary[1] >= 20) {
         const pName = shortCatNames[primary[0]] || "Military";
         summary += ` backed by strong investment in ${pName}`;
-        
+
         if (secondary && secondary[1] >= 15) {
             const sName = shortCatNames[secondary[0]] || "Military";
             summary += ` and ${sName}`;
@@ -368,7 +370,7 @@ export const generateCivForPlayer = (
     if (powerNames.has("Slavery")) powerFlavors.push("sacrificial production");
     if (powerNames.has("Priest Tower")) powerFlavors.push("religious fortification");
     if (powerNames.has("SAS Commando") || powerNames.has("Pathfinding")) powerFlavors.push("covert infantry tactics");
-    
+
     if (powerFlavors.length > 0) {
         if (powerFlavors.length === 1) {
             summary += `. Features ${powerFlavors[0]}`;
@@ -377,7 +379,7 @@ export const generateCivForPlayer = (
             summary += `. Features ${powerFlavors.join(", ")} and ${last}`;
         }
     }
-    
+
     // 4. Weakness check
     if ((categorySpend["Civ – Economy"] || 0) < 12) {
         summary += " — but requires careful economic management.";
@@ -386,7 +388,7 @@ export const generateCivForPlayer = (
     }
 
     // Power Score (0-100)
-    const synergyBonus = Object.values(categoryCounts).reduce((acc, c) => acc + (c > 1 ? (c-1)*5 : 0), 0);
+    const synergyBonus = Object.values(categoryCounts).reduce((acc, c) => acc + (c > 1 ? (c - 1) * 5 : 0), 0);
     const powerScore = Math.min(100, (100 - points) + (synergyBonus * 0.5));
 
     // --- Difficulty Calculation ---
@@ -402,7 +404,7 @@ export const generateCivForPlayer = (
     if ((categorySpend["Religion"] || 0) > 0) difficultyScore++;
     if ((categorySpend["Cyber"] || 0) > 0) difficultyScore++;
     if ((categorySpend["Aircraft"] || 0) > 10) difficultyScore++;
-    
+
     let difficulty: Difficulty = 'Intermediate';
     if (difficultyScore <= 1) difficulty = 'Beginner';
     else if (difficultyScore >= 4) difficulty = 'Advanced';
@@ -429,6 +431,12 @@ export const generateCivForPlayer = (
         difficulty,
         reasoning,
         warnings,
-        rerollUsed: false
+        rerollUsed: false,
+        synergies: (function detectSynergies(itemsList: GeneratedItem[]): SynergyRule[] {
+            const itemNames = new Set(itemsList.map(i => i.name));
+            return SYNERGIES.filter(rule =>
+                rule.items.every(requiredItem => itemNames.has(requiredItem))
+            );
+        })(items)
     };
 };

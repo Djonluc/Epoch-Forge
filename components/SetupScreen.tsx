@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
 import { AppConfig, PresetMode, PointUsageMode, MapType, Archetype } from '../types';
-import { EPOCHS, DEFAULT_NAMES, MAP_TYPES, PRESET_MODES, POINT_MODES, ARCHETYPES } from '../constants';
+import { EPOCHS, DEFAULT_NAMES, MAP_TYPES, PRESET_MODES, POINT_MODES, ARCHETYPES, MAP_TYPES_INFO, PRESET_MODES_INFO, POINT_MODES_INFO } from '../constants';
 import { User, Plus, X, Lock, Dices, ChevronDown, Anchor, Coins, Shield, Swords, Scale } from 'lucide-react';
+import { Tooltip } from './Tooltip';
 
 interface Props {
     config: AppConfig;
@@ -10,7 +11,7 @@ interface Props {
 }
 
 export const SetupScreen: React.FC<Props> = ({ config, onUpdate }) => {
-    
+
     // Handlers
     const setStartEpoch = (id: number) => onUpdate({ startEpoch: id });
     const setEndEpoch = (id: number) => onUpdate({ endEpoch: id });
@@ -22,10 +23,10 @@ export const SetupScreen: React.FC<Props> = ({ config, onUpdate }) => {
         const newCount = config.numPlayers + 1;
         const newNames = [...config.playerNames];
         const newArchetypes = [...config.playerArchetypes];
-        
+
         newNames.push(DEFAULT_NAMES[newCount - 1] || `Player ${newCount}`);
         newArchetypes.push('Random'); // Default
-        
+
         onUpdate({ numPlayers: newCount, playerNames: newNames, playerArchetypes: newArchetypes });
     };
 
@@ -61,16 +62,16 @@ export const SetupScreen: React.FC<Props> = ({ config, onUpdate }) => {
     // Helper: Pill styling
     const pillClass = (isActive: boolean, isRandom: boolean) => `
         px-4 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer whitespace-nowrap
-        ${isActive 
-            ? 'bg-[#5B8CFF] text-white shadow-md shadow-blue-500/20 transform scale-105' 
-            : isRandom 
+        ${isActive
+            ? 'bg-[#5B8CFF] text-white shadow-md shadow-blue-500/20 transform scale-105'
+            : isRandom
                 ? 'bg-[#1F2430] text-slate-500 border border-white/5 opacity-50 hover:opacity-100 hover:text-slate-300'
                 : 'bg-[#1F2430] text-slate-400 border border-white/5 hover:bg-[#262B38] hover:text-slate-200'
         }
     `;
 
     const getArchetypeIcon = (arch: Archetype) => {
-        switch(arch) {
+        switch (arch) {
             case 'Economic': return <Coins size={12} />;
             case 'Aggressive': return <Swords size={12} />;
             case 'Defensive': return <Shield size={12} />;
@@ -81,15 +82,16 @@ export const SetupScreen: React.FC<Props> = ({ config, onUpdate }) => {
     };
 
     // Internal Component for Progressive Disclosure Sections
-    const CollapsibleSection = <T extends string>({ 
-        title, 
-        current, 
-        options, 
-        isRandom, 
-        allowedOptions, 
-        onSelect, 
+    const CollapsibleSection = <T extends string>({
+        title,
+        current,
+        options,
+        isRandom,
+        allowedOptions,
+        onSelect,
         onToggleRandom,
-        onUpdateAllowed 
+        onUpdateAllowed,
+        infoMap
     }: {
         title: string,
         current: T,
@@ -98,7 +100,8 @@ export const SetupScreen: React.FC<Props> = ({ config, onUpdate }) => {
         allowedOptions: T[],
         onSelect: (val: T) => void,
         onToggleRandom: () => void,
-        onUpdateAllowed: (val: T) => void
+        onUpdateAllowed: (val: T) => void,
+        infoMap?: Record<string, { description: string }>
     }) => {
         const [expanded, setExpanded] = useState(false);
 
@@ -106,7 +109,7 @@ export const SetupScreen: React.FC<Props> = ({ config, onUpdate }) => {
             <div className="space-y-3 text-center">
                 <div className="flex justify-center items-center gap-2">
                     <div className="text-[10px] font-bold uppercase tracking-widest text-slate-600">{title}</div>
-                    <button 
+                    <button
                         onClick={onToggleRandom}
                         className={`p-1 rounded transition-colors ${isRandom ? "text-[#5B8CFF] bg-[#5B8CFF]/10" : "text-slate-600 hover:text-slate-400"}`}
                         title="Toggle Randomize"
@@ -114,10 +117,10 @@ export const SetupScreen: React.FC<Props> = ({ config, onUpdate }) => {
                         <Dices size={12} />
                     </button>
                 </div>
-                
+
                 {/* Active State / Collapsed View */}
                 {!expanded && !isRandom && (
-                    <button 
+                    <button
                         onClick={() => setExpanded(true)}
                         className="bg-[#1F2430] border border-white/10 rounded-full px-5 py-2 flex items-center gap-2 mx-auto hover:bg-[#262B38] transition-colors group"
                     >
@@ -130,23 +133,24 @@ export const SetupScreen: React.FC<Props> = ({ config, onUpdate }) => {
                 {(expanded || isRandom) && (
                     <div className="flex flex-wrap justify-center gap-2 animate-fade-in">
                         {options.map(opt => {
-                            const active = isRandom 
+                            const active = isRandom
                                 ? allowedOptions.includes(opt)
                                 : current === opt;
                             return (
-                                <button 
-                                    key={opt} 
-                                    onClick={() => {
-                                        if (isRandom) onUpdateAllowed(opt);
-                                        else {
-                                            onSelect(opt);
-                                            setExpanded(false);
-                                        }
-                                    }} 
-                                    className={pillClass(active, isRandom)}
-                                >
-                                    {opt}
-                                </button>
+                                <Tooltip key={opt as string} content={infoMap?.[opt as string]?.description} position="bottom">
+                                    <button
+                                        onClick={() => {
+                                            if (isRandom) onUpdateAllowed(opt);
+                                            else {
+                                                onSelect(opt);
+                                                setExpanded(false);
+                                            }
+                                        }}
+                                        className={pillClass(active, isRandom)}
+                                    >
+                                        {opt}
+                                    </button>
+                                </Tooltip>
                             );
                         })}
                     </div>
@@ -166,61 +170,65 @@ export const SetupScreen: React.FC<Props> = ({ config, onUpdate }) => {
 
     return (
         <div className="space-y-12 animate-fade-in">
-            
+
             {/* 1. Context / Rules Section */}
-            <div className="space-y-8">
+            <div className="space-y-8 bg-[#171A21]/30 p-8 rounded-3xl border border-white/5 backdrop-blur-sm">
                 {/* Timeline Rule */}
                 <div className="flex flex-col items-center gap-3">
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-slate-600 flex items-center gap-2">
-                        Timeline
-                        <button 
-                             onClick={() => onUpdate({ isEndEpochRandom: !config.isEndEpochRandom })}
-                             className={`p-1 rounded transition-colors ${config.isEndEpochRandom ? "text-[#5B8CFF] bg-[#5B8CFF]/10" : "text-slate-600 hover:text-slate-400"}`}
-                             title="Randomize End Epoch"
+                    <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-500 flex items-center gap-3">
+                        <div className="h-[1px] w-8 bg-slate-800" />
+                        Timeline Control
+                        <div className="h-[1px] w-8 bg-slate-800" />
+                        <button
+                            onClick={() => onUpdate({ isEndEpochRandom: !config.isEndEpochRandom })}
+                            className={`p-1.5 rounded-lg transition-all ${config.isEndEpochRandom ? "text-orange-400 bg-orange-400/10 shadow-[0_0_10px_rgba(251,146,60,0.2)]" : "text-slate-600 hover:text-slate-400 bg-white/5"}`}
+                            title="Randomize End Epoch"
                         >
-                            <Dices size={12} />
+                            <Dices size={14} />
                         </button>
                     </div>
 
-                    <div className="inline-flex items-center gap-2 bg-[#0F1117] p-1.5 rounded-2xl border border-white/10 shadow-lg">
-                        <select 
+                    <div className="inline-flex items-center gap-3 bg-[#0F1117] p-2 px-6 rounded-2xl border border-white/10 shadow-inner">
+                        <select
                             value={config.startEpoch}
                             onChange={(e) => setStartEpoch(Number(e.target.value))}
-                            className="bg-transparent text-sm p-2 px-4 text-slate-200 focus:outline-none cursor-pointer font-bold text-center appearance-none hover:text-[#5B8CFF] transition-colors"
+                            className="bg-transparent text-lg p-2 text-slate-200 focus:outline-none cursor-pointer font-black text-center appearance-none hover:text-orange-400 transition-colors"
                         >
-                            {EPOCHS.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                            {EPOCHS.map(e => <option key={e.id} value={e.id} className="bg-[#171A21]">{e.name}</option>)}
                         </select>
-                        <span className="text-slate-600 font-mono text-xs">➜</span>
-                        
+                        <span className="text-slate-700 font-mono text-xs opacity-50 flex items-center justify-center w-8">
+                            <div className="h-[1px] w-full bg-slate-800" />
+                        </span>
+
                         {!config.isEndEpochRandom ? (
-                            <select 
+                            <select
                                 value={config.endEpoch}
                                 onChange={(e) => setEndEpoch(Number(e.target.value))}
-                                className="bg-transparent text-sm p-2 px-4 text-slate-200 focus:outline-none cursor-pointer font-bold text-center appearance-none hover:text-[#5B8CFF] transition-colors"
+                                className="bg-transparent text-lg p-2 text-slate-200 focus:outline-none cursor-pointer font-black text-center appearance-none hover:text-orange-400 transition-colors"
                             >
                                 {EPOCHS.filter(e => e.id >= config.startEpoch).map(e => (
-                                    <option key={e.id} value={e.id}>{e.name}</option>
+                                    <option key={e.id} value={e.id} className="bg-[#171A21]">{e.name}</option>
                                 ))}
                             </select>
                         ) : (
                             <div className="flex items-center gap-1">
-                                <select 
+                                <select
                                     value={config.endEpochMin}
                                     onChange={(e) => setEndEpochMin(Number(e.target.value))}
-                                    className="bg-transparent text-sm p-2 px-2 text-[#5B8CFF] focus:outline-none cursor-pointer font-bold text-center appearance-none"
+                                    className="bg-transparent text-lg p-2 px-2 text-orange-400 focus:outline-none cursor-pointer font-black text-center appearance-none"
                                 >
                                     {EPOCHS.filter(e => e.id >= config.startEpoch).map(e => (
-                                        <option key={e.id} value={e.id}>{e.name}</option>
+                                        <option key={e.id} value={e.id} className="bg-[#171A21]">{e.name}</option>
                                     ))}
                                 </select>
-                                <span className="text-slate-600 text-[10px] font-bold">-</span>
-                                <select 
+                                <span className="text-slate-700 text-[10px] font-bold mx-1">/</span>
+                                <select
                                     value={config.endEpochMax}
                                     onChange={(e) => setEndEpochMax(Number(e.target.value))}
-                                    className="bg-transparent text-sm p-2 px-2 text-[#5B8CFF] focus:outline-none cursor-pointer font-bold text-center appearance-none"
+                                    className="bg-transparent text-lg p-2 px-2 text-orange-400 focus:outline-none cursor-pointer font-black text-center appearance-none"
                                 >
                                     {EPOCHS.filter(e => e.id >= config.endEpochMin).map(e => (
-                                        <option key={e.id} value={e.id}>{e.name}</option>
+                                        <option key={e.id} value={e.id} className="bg-[#171A21]">{e.name}</option>
                                     ))}
                                 </select>
                             </div>
@@ -229,9 +237,9 @@ export const SetupScreen: React.FC<Props> = ({ config, onUpdate }) => {
                 </div>
 
                 {/* Progressive Disclosure Selectors */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto items-start">
-                    <CollapsibleSection 
-                        title="World Type"
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-10 max-w-5xl mx-auto items-start pt-4">
+                    <CollapsibleSection
+                        title="World Context"
                         current={config.mapType}
                         options={MAP_TYPES}
                         isRandom={config.isMapRandom}
@@ -239,10 +247,11 @@ export const SetupScreen: React.FC<Props> = ({ config, onUpdate }) => {
                         onSelect={(val) => onUpdate({ mapType: val })}
                         onToggleRandom={() => onUpdate({ isMapRandom: !config.isMapRandom })}
                         onUpdateAllowed={(val) => onUpdate({ allowedMaps: toggleInArray(val, config.allowedMaps) })}
+                        infoMap={MAP_TYPES_INFO as any}
                     />
-                    
-                    <CollapsibleSection 
-                        title="Balance Style"
+
+                    <CollapsibleSection
+                        title="Ruleset Bias"
                         current={config.preset}
                         options={PRESET_MODES}
                         isRandom={config.isPresetRandom}
@@ -250,10 +259,11 @@ export const SetupScreen: React.FC<Props> = ({ config, onUpdate }) => {
                         onSelect={(val) => onUpdate({ preset: val })}
                         onToggleRandom={() => onUpdate({ isPresetRandom: !config.isPresetRandom })}
                         onUpdateAllowed={(val) => onUpdate({ allowedPresets: toggleInArray(val, config.allowedPresets) })}
+                        infoMap={PRESET_MODES_INFO as any}
                     />
 
-                    <CollapsibleSection 
-                        title="Point Logic"
+                    <CollapsibleSection
+                        title="Resource Logic"
                         current={config.pointUsage}
                         options={POINT_MODES}
                         isRandom={config.isPointUsageRandom}
@@ -261,57 +271,74 @@ export const SetupScreen: React.FC<Props> = ({ config, onUpdate }) => {
                         onSelect={(val) => onUpdate({ pointUsage: val })}
                         onToggleRandom={() => onUpdate({ isPointUsageRandom: !config.isPointUsageRandom })}
                         onUpdateAllowed={(val) => onUpdate({ allowedPointUsages: toggleInArray(val, config.allowedPointUsages) })}
+                        infoMap={POINT_MODES_INFO as any}
                     />
                 </div>
             </div>
 
             {/* 2. Player Lobby Section */}
-            <div className="pt-4">
-                 <div className="flex items-center justify-between mb-6 px-4 max-w-3xl mx-auto">
-                    <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500">Lobby</h2>
-                    <span className="text-xs text-slate-600 font-mono">{config.numPlayers} / 10 Players</span>
+            <div className="pt-4 pb-12">
+                <div className="flex items-center justify-between mb-8 px-6 max-w-4xl mx-auto">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-white/5 border border-white/5">
+                            <User size={16} className="text-slate-400" />
+                        </div>
+                        <h2 className="text-xs font-black uppercase tracking-[0.4em] text-slate-500">Player Rosters</h2>
+                    </div>
+                    <span className="text-[10px] font-black text-slate-600 font-mono tracking-widest uppercase bg-white/5 px-3 py-1 rounded-full border border-white/5">
+                        {config.numPlayers} Seats Occupied
+                    </span>
                 </div>
-                
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-3xl mx-auto">
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 max-w-4xl mx-auto px-4">
                     {config.playerNames.map((name, idx) => (
-                        <div key={idx} className="group relative bg-[#171A21] rounded-2xl p-5 border border-white/5 hover:border-[#5B8CFF]/30 hover:bg-[#1C2029] transition-all flex flex-col items-center text-center shadow-sm hover:shadow-lg hover:-translate-y-1">
-                             {/* Delete Button (Hover only) */}
+                        <div key={idx} className="group relative bg-gradient-to-br from-[#171A21] to-[#0F1117] rounded-3xl p-6 border border-white/5 hover:border-orange-500/20 transition-all flex items-center gap-6 shadow-xl hover:shadow-orange-500/5">
+                            {/* Delete Button (Hover only) */}
                             {config.numPlayers > 2 && (
-                                <button 
+                                <button
                                     onClick={() => removePlayer(idx)}
-                                    className="absolute top-2 right-2 text-slate-600 hover:text-[#FF6B6B] opacity-0 group-hover:opacity-100 transition-opacity p-1.5"
+                                    className="absolute -top-2 -right-2 bg-[#171A21] text-slate-600 hover:text-red-400 border border-white/10 rounded-full opacity-0 group-hover:opacity-100 transition-all p-2 shadow-xl hover:scale-110 z-10"
                                 >
                                     <X size={14} />
                                 </button>
                             )}
-                            
-                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 transition-colors relative ${avatarColors[idx % avatarColors.length]}`}>
-                                <User size={20} />
-                                {/* Ready Dot */}
-                                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-[#171A21] shadow-sm animate-pulse" title="Ready"></div>
-                            </div>
-                            
-                            <input 
-                                type="text"
-                                value={name}
-                                onChange={(e) => updateName(idx, e.target.value)}
-                                className="w-full bg-transparent text-center text-sm font-semibold text-slate-200 focus:outline-none border-b-2 border-transparent focus:border-[#5B8CFF]/50 pb-1 placeholder-slate-600"
-                                placeholder="Enter Name"
-                            />
 
-                            {/* Archetype Selector */}
-                            <div className="mt-2 w-full relative group/arch">
-                                <select
-                                    value={config.playerArchetypes[idx] || 'Random'}
-                                    onChange={(e) => updateArchetype(idx, e.target.value as Archetype)}
-                                    className="appearance-none w-full bg-[#0F1117] text-[10px] font-bold uppercase tracking-wide text-slate-500 py-1.5 pl-7 pr-2 rounded-lg border border-white/5 cursor-pointer hover:border-slate-600 hover:text-slate-300 focus:outline-none"
-                                >
-                                    {ARCHETYPES.map(arch => (
-                                        <option key={arch} value={arch}>{arch}</option>
-                                    ))}
-                                </select>
-                                <div className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none group-hover/arch:text-slate-400">
-                                    {getArchetypeIcon(config.playerArchetypes[idx] || 'Random')}
+                            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 transition-all relative ${avatarColors[idx % avatarColors.length]} group-hover:scale-110`}>
+                                <User size={28} />
+                                {/* Ready Dot */}
+                                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-4 border-[#12141C] shadow-lg animate-pulse"></div>
+                            </div>
+
+                            <div className="flex-1 space-y-3">
+                                <input
+                                    type="text"
+                                    value={name}
+                                    onChange={(e) => updateName(idx, e.target.value)}
+                                    className="w-full bg-transparent text-lg font-black text-slate-200 focus:outline-none border-b border-transparent focus:border-orange-500/30 pb-1 placeholder-slate-800 transition-all"
+                                    placeholder="COMMANDER NAME"
+                                />
+
+                                {/* Archetype Selector */}
+                                <div className="flex items-center gap-3">
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {ARCHETYPES.map(arch => (
+                                            <button
+                                                key={arch}
+                                                onClick={() => updateArchetype(idx, arch)}
+                                                className={`p-2 rounded-xl transition-all border ${config.playerArchetypes[idx] === arch || (!config.playerArchetypes[idx] && arch === 'Random')
+                                                        ? "bg-orange-500/10 border-orange-500/30 text-orange-400 shadow-[0_0_15px_rgba(251,146,60,0.1)]"
+                                                        : "bg-white/5 border-transparent text-slate-500 hover:text-slate-300 hover:bg-white/10"
+                                                    }`}
+                                                title={arch}
+                                            >
+                                                {getArchetypeIcon(arch as Archetype)}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="h-4 w-[1px] bg-slate-800 mx-1" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">
+                                        {config.playerArchetypes[idx] || 'Random'}
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -319,14 +346,14 @@ export const SetupScreen: React.FC<Props> = ({ config, onUpdate }) => {
 
                     {/* Add Button */}
                     {config.numPlayers < 10 && (
-                        <button 
+                        <button
                             onClick={addPlayer}
-                            className="bg-transparent rounded-2xl p-4 border border-dashed border-slate-700 hover:border-[#5B8CFF]/50 hover:bg-[#1F2430]/30 transition-all flex flex-col items-center justify-center gap-2 text-slate-500 hover:text-[#5B8CFF] min-h-[140px]"
+                            className="bg-[#0F1117] rounded-3xl p-6 border-2 border-dashed border-slate-800 hover:border-orange-500/30 hover:bg-orange-500/5 transition-all flex items-center justify-center gap-4 text-slate-600 hover:text-orange-400 group min-h-[110px]"
                         >
-                            <div className="w-10 h-10 rounded-full border border-current flex items-center justify-center opacity-50">
-                                <Plus size={16} />
+                            <div className="w-10 h-10 rounded-full border border-current flex items-center justify-center group-hover:scale-110 transition-transform">
+                                <Plus size={20} />
                             </div>
-                            <span className="text-xs font-semibold uppercase tracking-wide">Join Lobby</span>
+                            <span className="text-sm font-black uppercase tracking-[0.2em]">Add Commander</span>
                         </button>
                     )}
                 </div>
