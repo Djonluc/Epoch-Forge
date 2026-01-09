@@ -1,5 +1,5 @@
 <div align="center">
-<img width="800" alt="DjonStNix Banner" src="./banner.png" />
+<img width="800" alt="DjonStNix Banner" src="./epoch_collagelogo.png" />
 </div>
 
 # Epoch Forge
