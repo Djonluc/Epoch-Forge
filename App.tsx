@@ -203,9 +203,6 @@ const App: React.FC = () => {
                             </div>
                         </button>
                     </div>
-                    <div className="flex flex-col items-center gap-1 mt-6">
-                        <DjonStNixLogo className="scale-75 md:scale-90 opacity-40 hover:opacity-100 transition-opacity cursor-default" />
-                    </div>
 
                     {!isForged && (
                         <div className="animate-fade-in mt-12 mb-8 group relative max-w-4xl mx-auto px-4">
@@ -225,6 +222,13 @@ const App: React.FC = () => {
                     <p className={`font-bold text-sm tracking-[0.3em] uppercase transition-colors duration-700 mt-8 ${isForged ? 'text-amber-500' : 'text-slate-600'}`}>
                         {getHeaderText()}
                     </p>
+
+                    {/* Fixed DjonStNix Branding */}
+                    <div className="fixed bottom-6 right-8 z-50 pointer-events-none">
+                        <div className="pointer-events-auto">
+                            <DjonStNixLogo className="scale-[0.6] md:scale-75 animate-electric-pulse" />
+                        </div>
+                    </div>
                 </div>
 
                 <div className={`transition-all duration-1000 ${isForged || isForging ? 'opacity-10 blur-[4px] grayscale pointer-events-none' : ''}`}>
