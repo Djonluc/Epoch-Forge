@@ -4,7 +4,7 @@
 
 # Epoch Forge
 
-**Randomized Civilization Builder for Empire Earth**
+**Build Generator for Empire Earth: Art of Conquest**
 
 **Created & Designed by Djon-Luc**  
 [https://www.youtube.com/@Djonluc](https://www.youtube.com/@Djonluc)
@@ -34,7 +34,7 @@ It will automatically launch in your default web browser.
 
 ## 1. PURPOSE
 
-Epoch Forge generates fully valid, buildable civilization setups using the exact rules of the Empire Earth Civilization Builder, enhanced with clarity, balance indicators, and multiplayer quality-of-life features.
+Epoch Forge generates civilization builds following the rules of Empire Earth: Art of Conquest, including balance indicators and quality-of-life features.
 
 The output is meant to be manually recreated in-game.
 

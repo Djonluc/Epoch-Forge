@@ -66,7 +66,7 @@ class AudioService {
     }
 
     /**
-     * Play the Empire Earth intro grunt
+     * Play the Empire Earth: Art of Conquest intro grunt
      */
     playIntroGrunt() {
         const sound = this.sounds.get('EE_GRUNT');
@@ -77,7 +77,7 @@ class AudioService {
     }
 
     /**
-     * Play a random Empire Earth unit sound
+     * Play a random Empire Earth: Art of Conquest unit sound
      */
     playRandomUnitSound() {
         const randomIndex = Math.floor(Math.random() * EE_UNIT_SOUNDS.length);
