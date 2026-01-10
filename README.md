@@ -27,7 +27,7 @@ Whether you are preparing for a competitive **Tournament**, looking for **Casual
 ## 🔥 Key Features
 
 ### 📡 Tactical Session UI
-A multi-stage configuration flow that covers **Operative Selection** (Players), **Roster Logistics** (Map/Mode), **Temporal Alignment** (Epochs), and **Operational Logic** (Weights).
+A multi-stage configuration flow that covers **Operative Selection** (Players), **Roster Logistics** (Map/Mode), **Temporal Alignment** (Epochs), and **Operational Logic** (Weights). Featuring a robust, responsive layout designed for technical "War-Room" displays.
 
 ### ⚡ The "Phase Shift" Transition
 Experience the transition from configuration to execution. Clicking **Finalize Strategy** triggers a high-impact, cinematic shift into the **Forge Phase**, featuring professional particle effects and sound design.

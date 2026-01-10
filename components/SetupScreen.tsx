@@ -78,7 +78,7 @@ const OperationalLogic = ({
         const isActiveState = (val: T) => isRandom ? option.allowed.includes(val) : option.value === val;
 
         const pillClass = (active: boolean) => `
-            px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wide transition-all cursor-pointer whitespace-normal text-center leading-tight flex items-center justify-center min-h-[32px] font-mono
+            px-2 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wide transition-all cursor-pointer whitespace-normal text-center leading-tight flex items-center justify-center min-h-[28px] font-mono
             ${active
                 ? 'bg-orange-500/20 text-orange-400 border border-orange-500/40 shadow-[0_0_15px_rgba(249,115,22,0.2)]'
                 : isRandom
@@ -88,30 +88,30 @@ const OperationalLogic = ({
         `;
 
         return (
-            <div className={`bg-[#12141C] border-2 ${isRandom ? 'border-orange-500/20' : 'border-white/5'} rounded-[2.5rem] p-6 flex flex-col items-center group transition-all shadow-xl relative overflow-hidden w-full`}>
-                <div className="flex justify-between items-center w-full mb-4 px-2">
-                    <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-xl border-2 ${isRandom ? 'bg-orange-500/10 border-orange-500/30 text-orange-400' : 'bg-[#171A21] border-white/5 text-slate-600'}`}>
-                            {icon || <Dices size={16} />}
+            <div className={`bg-[#12141C] border-2 ${isRandom ? 'border-orange-500/20' : 'border-white/5'} rounded-3xl p-5 flex flex-col items-center group transition-all shadow-xl relative overflow-hidden w-full`}>
+                <div className="flex justify-between items-center w-full mb-5 px-1 relative z-10">
+                    <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                        <div className={`p-1.5 rounded-xl border-2 shrink-0 ${isRandom ? 'bg-orange-500/10 border-orange-500/30 text-orange-400' : 'bg-[#171A21] border-white/5 text-slate-600'}`}>
+                            {icon || <Dices size={14} />}
                         </div>
-                        <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 font-mono italic">{title}</div>
+                        <div className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-500 font-mono italic truncate">{title}</div>
                     </div>
-                    <div className="flex bg-[#171A21] rounded-lg p-1 border border-white/5">
-                        <button onClick={() => !isRandom && handleModeToggle()} className={`px-3 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all ${!isRandom ? 'bg-[#5B8CFF]/10 text-[#5B8CFF] shadow-sm' : 'text-slate-600 hover:text-slate-400'}`}>
-                            <Target size={12} className="inline mr-1" /> Fixed
+                    <div className="flex bg-[#171A21] rounded-lg p-0.5 border border-white/5 shrink-0">
+                        <button onClick={() => !isRandom && handleModeToggle()} className={`px-2 py-1 rounded-md text-[8px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${!isRandom ? 'bg-[#5B8CFF]/10 text-[#5B8CFF] shadow-sm' : 'text-slate-600 hover:text-slate-400'}`}>
+                            <Target size={10} /> Fixed
                         </button>
-                        <button onClick={() => isRandom && handleModeToggle()} className={`px-3 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all ${isRandom ? 'bg-orange-500/10 text-orange-400 shadow-sm' : 'text-slate-600 hover:text-slate-400'}`}>
-                            <Dices size={12} className="inline mr-1" /> Random
+                        <button onClick={() => isRandom && handleModeToggle()} className={`px-2 py-1 rounded-md text-[8px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${isRandom ? 'bg-orange-500/10 text-orange-400 shadow-sm' : 'text-slate-600 hover:text-slate-400'}`}>
+                            <Dices size={10} /> Random
                         </button>
                     </div>
                 </div>
 
-                <button onClick={() => setExpanded(!expanded)} className={`w-full rounded-2xl px-5 py-4 flex items-center justify-between transition-all group shadow-lg mb-2 border-2 ${isRandom ? "bg-[#171A21] border-orange-500/20 text-orange-400" : "bg-[#171A21] border-white/10 text-slate-300 hover:border-[#5B8CFF]/30"}`}>
-                    <span className="text-xs font-bold uppercase tracking-widest font-mono flex items-center gap-3">
-                        {isRandom && <span className="bg-orange-500 text-[#12141C] text-[9px] px-1.5 py-0.5 rounded font-black">{currentCount}</span>}
-                        {currentLabel}
+                <button onClick={() => setExpanded(!expanded)} className={`w-full rounded-xl px-4 py-3 flex items-center justify-between transition-all group shadow-lg mb-1 border-2 ${isRandom ? "bg-[#171A21] border-orange-500/20 text-orange-400" : "bg-[#171A21] border-white/10 text-slate-300 hover:border-[#5B8CFF]/30"}`}>
+                    <span className="text-[10px] font-bold uppercase tracking-widest font-mono flex items-center gap-2 truncate flex-1 text-left">
+                        {isRandom && <span className="bg-orange-500 text-[#12141C] text-[8px] px-1.5 py-0.5 rounded font-black shrink-0">{currentCount}</span>}
+                        <span className="truncate">{currentLabel}</span>
                     </span>
-                    <ChevronDown size={14} className={`transition-all duration-300 ${expanded ? 'rotate-180' : ''} ${isRandom ? 'text-orange-500' : 'text-slate-600'}`} />
+                    <ChevronDown size={14} className={`shrink-0 transition-all duration-300 ${expanded ? 'rotate-180' : ''} ${isRandom ? 'text-orange-500' : 'text-slate-600'}`} />
                 </button>
 
                 {expanded && (
