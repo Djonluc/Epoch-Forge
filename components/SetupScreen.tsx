@@ -88,29 +88,33 @@ const OperationalLogic = ({
         `;
 
         return (
-            <div className={`bg-[#12141C] border-2 ${isRandom ? 'border-orange-500/20' : 'border-white/5'} rounded-3xl p-5 flex flex-col items-center group transition-all shadow-xl relative overflow-hidden w-full`}>
-                <div className="flex justify-between items-center w-full mb-5 px-1 relative z-10">
-                    <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+            <div className={`bg-[#12141C] border-2 ${isRandom ? 'border-orange-500/20' : 'border-white/5'} rounded-3xl p-5 flex flex-col items-center group transition-all shadow-xl relative overflow-hidden w-full h-full`}>
+                <div className="flex justify-between items-center w-full mb-5 px-1 relative z-10 gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                         <div className={`p-1.5 rounded-xl border-2 shrink-0 ${isRandom ? 'bg-orange-500/10 border-orange-500/30 text-orange-400' : 'bg-[#171A21] border-white/5 text-slate-600'}`}>
                             {icon || <Dices size={14} />}
                         </div>
                         <div className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-500 font-mono italic truncate">{title}</div>
                     </div>
-                    <div className="flex bg-[#171A21] rounded-lg p-0.5 border border-white/5 shrink-0">
-                        <button onClick={() => !isRandom && handleModeToggle()} className={`px-2 py-1 rounded-md text-[8px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${!isRandom ? 'bg-[#5B8CFF]/10 text-[#5B8CFF] shadow-sm' : 'text-slate-600 hover:text-slate-400'}`}>
-                            <Target size={10} /> Fixed
+                    <div className="flex bg-[#171A21] rounded-lg p-0.5 border border-white/5 shrink-0 ml-auto leading-none">
+                        <button onClick={() => !isRandom && handleModeToggle()} className={`px-2 py-1.5 rounded-md text-[8px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 ${!isRandom ? 'bg-[#5B8CFF]/10 text-[#5B8CFF] shadow-sm' : 'text-slate-600 hover:text-slate-400'}`}>
+                            <Target size={10} className="shrink-0" /> <span className="hidden sm:inline">Fixed</span>
                         </button>
-                        <button onClick={() => isRandom && handleModeToggle()} className={`px-2 py-1 rounded-md text-[8px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${isRandom ? 'bg-orange-500/10 text-orange-400 shadow-sm' : 'text-slate-600 hover:text-slate-400'}`}>
-                            <Dices size={10} /> Random
+                        <button onClick={() => isRandom && handleModeToggle()} className={`px-2 py-1.5 rounded-md text-[8px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 ${isRandom ? 'bg-orange-500/10 text-orange-400 shadow-sm' : 'text-slate-600 hover:text-slate-400'}`}>
+                            <Dices size={10} className="shrink-0" /> <span className="hidden sm:inline">Random</span>
                         </button>
                     </div>
                 </div>
 
                 <button onClick={() => setExpanded(!expanded)} className={`w-full rounded-xl px-4 py-3 flex items-center justify-between transition-all group shadow-lg mb-1 border-2 ${isRandom ? "bg-[#171A21] border-orange-500/20 text-orange-400" : "bg-[#171A21] border-white/10 text-slate-300 hover:border-[#5B8CFF]/30"}`}>
-                    <span className="text-[10px] font-bold uppercase tracking-widest font-mono flex items-center gap-2 truncate flex-1 text-left">
-                        {isRandom && <span className="bg-orange-500 text-[#12141C] text-[8px] px-1.5 py-0.5 rounded font-black shrink-0">{currentCount}</span>}
-                        <span className="truncate">{currentLabel}</span>
-                    </span>
+                    <div className="flex items-center gap-3 overflow-hidden">
+                        {isRandom && (
+                            <div className="bg-orange-500 text-[#12141C] text-[9px] px-2 py-0.5 rounded font-black shrink-0 flex items-center justify-center min-w-[20px]">
+                                {currentCount}
+                            </div>
+                        )}
+                        <span className="text-[10px] font-bold uppercase tracking-widest font-mono truncate">{currentLabel}</span>
+                    </div>
                     <ChevronDown size={14} className={`shrink-0 transition-all duration-300 ${expanded ? 'rotate-180' : ''} ${isRandom ? 'text-orange-500' : 'text-slate-600'}`} />
                 </button>
 
@@ -217,16 +221,63 @@ export const SetupScreen: React.FC<Props> = ({ config, onUpdate, onComplete, onF
         const newCount = config.numPlayers + 1;
         const newNames = [...config.playerNames];
         const newArchetypes = [...config.playerArchetypes];
-        newNames.push(DEFAULT_NAMES[newCount - 1] || `Commander ${newCount}`);
-        newArchetypes.push('Random');
+
+        // Ensure we have a default name from the list for the NEW slot
+        const defaultName = DEFAULT_NAMES[newCount - 1] || `OPERATIVE ${newCount}`;
+        if (newNames.length < newCount) {
+            newNames.push(defaultName);
+        } else if (!newNames[newCount - 1]) {
+            newNames[newCount - 1] = defaultName;
+        }
+
+        if (newArchetypes.length < newCount) {
+            newArchetypes.push('Random');
+        }
+
         onUpdate({ numPlayers: newCount, playerNames: newNames, playerArchetypes: newArchetypes });
     };
 
     const removePlayer = (idxToRemove: number) => {
         if (config.numPlayers <= 2) return;
+        const newCount = config.numPlayers - 1;
         const newNames = config.playerNames.filter((_, idx) => idx !== idxToRemove);
         const newArchetypes = config.playerArchetypes.filter((_, idx) => idx !== idxToRemove);
-        onUpdate({ numPlayers: config.numPlayers - 1, playerNames: newNames, playerArchetypes: newArchetypes });
+        onUpdate({ numPlayers: newCount, playerNames: newNames, playerArchetypes: newArchetypes });
+    };
+
+    // Helper: Custom Dropdown for Epochs (War-Room Aesthetic)
+    const CustomSelect = ({ value, label, options, onChange, icon: Icon, prefix }: { value: number, label: string, options: { id: number, name: string }[], onChange: (val: number) => void, icon?: any, prefix?: string }) => {
+        const [isOpen, setIsOpen] = useState(false);
+        const selected = options.find(o => o.id === value) || options[0];
+
+        return (
+            <div className="relative w-full max-w-xs group/select">
+                {prefix && <div className="absolute left-6 top-1/2 -translate-y-1/2 text-orange-500/40 pointer-events-none font-mono text-[10px] z-20">{prefix}</div>}
+                <button
+                    onClick={() => setIsOpen(!isOpen)}
+                    className="w-full bg-[#171A21] text-2xl md:text-3xl p-6 px-14 text-slate-200 focus:outline-none cursor-pointer font-black text-center border-2 border-white/5 hover:border-orange-500/40 hover:text-orange-400 transition-all rounded-2xl shadow-xl tracking-tight flex items-center justify-center gap-4 group"
+                >
+                    <span className="truncate">{selected.name}</span>
+                    <ChevronDown size={20} className={`text-slate-600 transition-transform duration-300 ${isOpen ? 'rotate-180 text-orange-500' : ''}`} />
+                </button>
+
+                {isOpen && (
+                    <div className="absolute top-[110%] left-0 w-full bg-[#171A21]/95 backdrop-blur-xl border-2 border-orange-500/30 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-50 py-2 max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-orange-500/20">
+                        {options.map(opt => (
+                            <button
+                                key={opt.id}
+                                onClick={() => { onChange(opt.id); setIsOpen(false); }}
+                                className={`w-full px-6 py-3 text-left hover:bg-orange-500/10 transition-colors flex items-center justify-between group ${value === opt.id ? 'bg-orange-500/5 text-orange-400' : 'text-slate-400'}`}
+                            >
+                                <span className={`font-bold transition-all ${value === opt.id ? 'translate-x-2' : ''}`}>{opt.name}</span>
+                                {value === opt.id && <div className="w-1.5 h-1.5 rounded-full bg-orange-500 shadow-[0_0_10px_#f97316]" />}
+                            </button>
+                        ))}
+                    </div>
+                )}
+                {isOpen && <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />}
+            </div>
+        );
     };
 
     const nextStage = (current: TacticalStage) => {
@@ -306,7 +357,7 @@ export const SetupScreen: React.FC<Props> = ({ config, onUpdate, onComplete, onF
                         </div>
                     </div>
                     <button onClick={() => nextStage('PLAYERS')} className="mt-16 group px-16 py-5 bg-[#171A21] hover:bg-orange-600 rounded-2xl flex items-center gap-6 transition-all duration-500 shadow-2xl border-2 border-white/10 hover:border-orange-500/50 hover:scale-[1.05]">
-                        <span className="text-sm font-black text-slate-100 uppercase tracking-[0.4em] font-mono">Initialize Roster</span>
+                        <span className="text-sm font-black text-slate-100 uppercase tracking-[0.4em] font-mono">Setup Player Roster</span>
                         <ChevronRight size={20} className="text-orange-500 group-hover:text-white group-hover:translate-x-2 transition-all" />
                     </button>
                 </div>
@@ -315,13 +366,42 @@ export const SetupScreen: React.FC<Props> = ({ config, onUpdate, onComplete, onF
             {currentStage === 'ROSTER' && (
                 <div className="w-full flex flex-col items-center animate-fade-in-up">
                     <h2 className="text-6xl md:text-7xl font-black text-slate-100 italic tracking-tighter mb-4 text-center">Roster Assignment</h2>
-                    <p className="text-slate-500 font-mono tracking-[0.4em] uppercase text-[10px] mb-12 italic opacity-70">Directive 02: Designate Call Signs</p>
+                    <p className="text-slate-500 font-mono tracking-[0.4em] uppercase text-[10px] mb-8 italic opacity-70">Directive 02: Designate Call Signs</p>
+
+                    {/* Quick Add/Remove controls also here */}
+                    <div className="flex items-center gap-4 mb-10 bg-white/5 p-2 rounded-2xl border border-white/5">
+                        <button onClick={() => removePlayer(config.numPlayers - 1)} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-all">
+                            <X size={16} />
+                        </button>
+                        <div className="px-4 font-mono font-bold text-orange-500 text-sm">{config.numPlayers} OPERATIVES</div>
+                        <button onClick={addPlayer} className="w-10 h-10 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 flex items-center justify-center text-orange-500 transition-all">
+                            <Plus size={16} />
+                        </button>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl">
                         {Array.from({ length: config.numPlayers }).map((_, i) => (
-                            <div key={i} className="bg-[#171A21] p-6 rounded-2xl border-2 border-white/5 hover:border-orange-500/20 transition-all group flex items-center gap-6">
-                                <span className="font-mono text-2xl font-black text-orange-500/20 group-hover:text-orange-500/40 transition-colors">{(i + 1).toString().padStart(2, '0')}</span>
-                                <input type="text" value={config.playerNames[i] || ''} placeholder={`OPERATIVE ${i + 1}`} onChange={(e) => updateName(i, e.target.value)} className="bg-transparent text-xl font-bold text-slate-200 focus:outline-none placeholder:text-slate-700 w-full uppercase tracking-wider" />
-                                <div className="w-2 h-2 rounded-full bg-green-500/20 group-hover:bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.2)] transition-all" />
+                            <div key={i} className="bg-[#171A21] p-6 rounded-2xl border-2 border-white/5 hover:border-orange-500/20 transition-all group flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-6 flex-1">
+                                    <span className="font-mono text-2xl font-black text-orange-500/20 group-hover:text-orange-500/40 transition-colors">{(i + 1).toString().padStart(2, '0')}</span>
+                                    <input
+                                        type="text"
+                                        value={config.playerNames[i] || ''}
+                                        placeholder={DEFAULT_NAMES[i] || `OPERATIVE ${i + 1}`}
+                                        onChange={(e) => updateName(i, e.target.value)}
+                                        className="bg-transparent text-xl font-bold text-slate-200 focus:outline-none placeholder:text-slate-700 w-full uppercase tracking-wider"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => removePlayer(i)}
+                                        className="p-2 opacity-0 group-hover:opacity-100 hover:text-rose-500 transition-all text-slate-600"
+                                        title="Remove Player"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                    <div className="w-2 h-2 rounded-full bg-green-500/20 group-hover:bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.2)] transition-all" />
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -344,13 +424,13 @@ export const SetupScreen: React.FC<Props> = ({ config, onUpdate, onComplete, onF
                             <div className="absolute inset-0 bg-orange-500/5 blur-2xl rounded-full group-hover:bg-orange-500/10 transition-all opacity-0 group-hover:opacity-100" />
                             <div className="bg-[#171A21] p-10 rounded-[2.5rem] border-2 border-white/5 hover:border-orange-500/30 transition-all relative z-10 flex flex-col items-center w-80 shadow-2xl">
                                 <div className="text-[10px] font-bold text-slate-600 tracking-[0.3em] uppercase mb-6 font-mono border-b border-white/5 pb-2">Entry Point</div>
-                                <div className="relative w-full max-w-xs group/select">
-                                    <div className="absolute left-6 top-1/2 -translate-y-1/2 text-orange-500/40 pointer-events-none font-mono text-[10px]">A1</div>
-                                    <select value={config.startEpoch} onChange={(e) => setStartEpoch(Number(e.target.value))} className="w-full bg-[#171A21] text-4xl p-6 px-14 text-slate-200 focus:outline-none cursor-pointer font-black text-center appearance-none border-2 border-white/5 hover:border-orange-500/40 hover:text-orange-400 transition-all rounded-2xl shadow-xl tracking-tight">
-                                        {EPOCHS.map(e => <option key={e.id} value={e.id} className="bg-[#171A21]">{e.name}</option>)}
-                                    </select>
-                                    <div className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none group-hover/select:text-orange-500 transition-colors"><ChevronDown size={20} /></div>
-                                </div>
+                                <CustomSelect
+                                    value={config.startEpoch}
+                                    options={EPOCHS}
+                                    onChange={(val) => setStartEpoch(val)}
+                                    label="Selection"
+                                    prefix="A1"
+                                />
                                 <div className="mt-8 flex items-center gap-3 text-slate-600 px-6 py-2 rounded-full border border-white/5 bg-white/5 opacity-50 font-mono text-[10px] uppercase tracking-wider"><Lock size={12} /> Fixed Anchor</div>
                             </div>
                         </div>
@@ -361,23 +441,32 @@ export const SetupScreen: React.FC<Props> = ({ config, onUpdate, onComplete, onF
                             <div className="absolute inset-0 bg-orange-500/5 blur-2xl rounded-full group-hover:bg-orange-500/10 transition-all opacity-0 group-hover:opacity-100" />
                             <div className="bg-[#171A21] p-10 rounded-[2.5rem] border-2 border-white/5 hover:border-orange-500/30 transition-all relative z-10 flex flex-col items-center w-80 shadow-2xl">
                                 <div className="text-[10px] font-bold text-slate-600 tracking-[0.3em] uppercase mb-6 font-mono border-b border-white/5 pb-2">Target Destination</div>
-                                <div className="relative w-full max-w-xs group/select">
-                                    <div className="absolute left-6 top-1/2 -translate-y-1/2 text-orange-500/40 pointer-events-none font-mono text-[10px]">Z9</div>
-                                    {!config.isEndEpochRandom ? (
-                                        <>
-                                            <select value={config.endEpoch} onChange={(e) => setEndEpoch(Number(e.target.value))} className="w-full bg-[#171A21] text-4xl p-6 px-14 text-slate-200 focus:outline-none cursor-pointer font-black text-center appearance-none border-2 border-white/5 hover:border-orange-500/40 hover:text-orange-400 transition-all rounded-2xl shadow-xl tracking-tight">
-                                                {EPOCHS.filter(e => e.id >= config.startEpoch).map(e => <option key={e.id} value={e.id} className="bg-[#171A21]">{e.name}</option>)}
-                                            </select>
-                                            <div className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none group-hover/select:text-orange-500 transition-colors"><ChevronDown size={20} /></div>
-                                        </>
-                                    ) : (
-                                        <div className="flex items-center gap-4 bg-[#171A21] border-2 border-orange-500/30 p-4 rounded-2xl shadow-2xl">
-                                            <select value={config.endEpochMin} onChange={(e) => setEndEpochMin(Number(e.target.value))} className="bg-transparent text-3xl text-orange-400 font-black appearance-none focus:outline-none text-center flex-1">{EPOCHS.filter(e => e.id >= config.startEpoch).map(e => <option key={e.id} value={e.id} className="bg-[#171A21]">{e.name}</option>)}</select>
-                                            <div className="h-8 w-px bg-orange-500/20" />
-                                            <select value={config.endEpochMax} onChange={(e) => setEndEpochMax(Number(e.target.value))} className="bg-transparent text-3xl text-orange-400 font-black appearance-none focus:outline-none text-center flex-1">{EPOCHS.filter(e => e.id >= config.endEpochMin).map(e => <option key={e.id} value={e.id} className="bg-[#171A21]">{e.name}</option>)}</select>
-                                        </div>
-                                    )}
-                                </div>
+                                {!config.isEndEpochRandom ? (
+                                    <CustomSelect
+                                        value={config.endEpoch}
+                                        options={EPOCHS.filter(e => e.id >= config.startEpoch)}
+                                        onChange={(val) => setEndEpoch(val)}
+                                        label="Selection"
+                                        prefix="Z9"
+                                    />
+                                ) : (
+                                    <div className="flex flex-col gap-3 w-full">
+                                        <CustomSelect
+                                            value={config.endEpochMin}
+                                            options={EPOCHS.filter(e => e.id >= config.startEpoch)}
+                                            onChange={(val) => setEndEpochMin(val)}
+                                            label="Min"
+                                            prefix="MIN"
+                                        />
+                                        <CustomSelect
+                                            value={config.endEpochMax}
+                                            options={EPOCHS.filter(e => e.id >= config.endEpochMin)}
+                                            onChange={(val) => setEndEpochMax(val)}
+                                            label="Max"
+                                            prefix="MAX"
+                                        />
+                                    </div>
+                                )}
                                 <button onClick={() => onUpdate({ isEndEpochRandom: !config.isEndEpochRandom })} className={`mt-8 flex items-center gap-3 px-6 py-2 rounded-full text-[10px] font-bold uppercase tracking-[0.1em] transition-all font-mono border-2 ${config.isEndEpochRandom ? "text-orange-400 bg-orange-400/10 border-orange-500/40 shadow-[0_0_20px_rgba(249,115,22,0.3)] animate-pulse" : "text-slate-600 bg-white/5 border-transparent hover:text-slate-400 hover:border-white/10"}`}>
                                     <Dices size={14} /> {config.isEndEpochRandom ? "Timeline Drift Active" : "Fixed Chronology"}
                                 </button>
