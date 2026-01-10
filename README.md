@@ -36,6 +36,20 @@ It will automatically launch in your default web browser.
 
 Epoch Forge generates civilization builds following the rules of Empire Earth: Art of Conquest, including balance indicators and quality-of-life features.
 
+### 1.1 Deterministic Seed Contract
+
+All randomness must originate from a single seeded PRNG instance. Use of non-seeded randomness (e.g. `Math.random` without seed) during generation is forbidden.
+
+Changing any of the following must change the output:
+- Seed value
+- Map type
+- Preset style
+- Point logic
+- Epoch end
+- Player count
+
+Changing player names must NOT affect generation results.
+
 The output is meant to be manually recreated in-game.
 
 ## 2. PLATFORM (CONFIRMED)
@@ -88,6 +102,16 @@ inputs:
     - Chaos
     - Historical
 ```
+
+### 4.1 Generation Freeze Rule
+
+Once generation begins, all match rules are frozen. Changing any rule (map, epoch, count) requires a full regeneration with a new seed.
+
+### 4.2 UI De-Emphasize Rule
+
+After forging civilizations:
+- Match setup controls are visually de-emphasized.
+- Civilization results become the primary focus.
 
 ## 5. DEFAULT PLAYER NAMES
 
@@ -204,7 +228,7 @@ All remaining boosts in that heading become more expensive.
 *   25% Rate of Fire: 2
 *   20% Speed: 2
 
-*(Ships, Aircraft, Tanks, Cybers, Religion follow the same confirmed structure and costs.)*
+*(All standard Civilization Builder bonuses and Art of Conquest powers follow the confirmed structure and costs.)*
 
 ## 10. ART OF CONQUEST CIVILIZATION POWERS
 
@@ -238,6 +262,18 @@ WHILE exists any item with final_cost ≤ points:
 END
 ```
 
+### 11.1 Eligibility vs Weighting
+
+Eligibility filters are hard exclusions. Weighting biases only affect probability among eligible items. An item that fails eligibility (epoch, map, rules) must never be selected, regardless of weighting.
+
+### 11.2 Validation Step
+
+Before final output, each civilization must pass validation:
+- Total cost ≤ 100 points
+- No invalid epoch items
+- No map-restricted content
+- No duplicate boosts
+
 ## 12. CIV SUMMARY
 
 Each generated civ receives an auto-generated summary:
@@ -245,17 +281,23 @@ Each generated civ receives an auto-generated summary:
 
 Generated using selected boosts and powers.
 
-## 13. EARLY / MID / LATE GAME RATINGS
+### 12.1 "Why This Civ?" Trace Hook
+
+The engine optionally retains a lightweight decision trace (e.g. selected due to map bias, archetype bias, or neutral roll) for display in "Why this civ?" tooltips.
+
+## 13. POTENTIAL SYNERGIES
+
+Synergy detection is descriptive only. It does not influence generation, weighting, costs, or validation.
 
 Each civ displays:
-*   Early Game: ★★★★☆
-*   Mid Game: ★★★☆☆
-*   Late Game: ★★☆☆☆
+- Early Game: ★★★★☆
+- Mid Game: ★★★☆☆
+- Late Game: ★★☆☆☆
 
 Calculated from:
-*   Economy & build speed → Early
-*   Infantry & cavalry → Mid
-*   Tanks, aircraft, AoC powers → Late
+- Economy & build speed → Early
+- Infantry & cavalry → Mid
+- Tanks, aircraft, AoC powers → Late
 
 ## 14. COST CHANGE EXPLANATIONS
 
@@ -265,15 +307,21 @@ When a cost increases, the UI explains why:
 ## 15. REROLL CONTROLS
 
 Buttons:
-*   Reroll Entire Civ (Deterministic sub-seed)
-*   (Locked in Tournament Mode)
+- Reroll Entire Civ (Restores initial seed state)
+- Individual Player Reroll (Deterministic sub-seed)
 
-Player name remains unchanged unless edited.
+### 15.1 Single-Civ Reroll Behavior
+
+- Preserve all match rules (map, epoch, etc.).
+- Use a deterministic sub-seed (e.g. `EF-2713-B`).
+- Do not affect other players' civilizations.
+- Are optional and may be limited per player.
+- Locked in Tournament Mode.
 
 ## 16. SEEDED GENERATION
 
 Each generation produces a seed:
-*   Seed: EF-48291
+- Seed: `EF-48291`
 
 Entering the same seed reproduces identical civs.
 
@@ -293,9 +341,19 @@ Each civ receives a Power Score (0–100).
 ## 19. EXPORT & SHARING
 
 Supported outputs:
-*   Copy as text (Checklist format)
-*   Export JSON
-*   **Shared Session Link** (Encodes seed & config into URL)
+- Copy as text (Checklist format)
+- Export JSON
+- **Shared Session Link** (Encodes seed & config into URL)
+
+---
+
+## 20. OUT-OF-SCOPE GUARDRAILS
+
+The following are explicitly out of scope and must not be implemented:
+- Build optimization or best-build logic.
+- Statistical win-rate analysis.
+- Automated in-game modification.
+- Account systems or progression.
 
 ---
 
@@ -308,3 +366,4 @@ Save presets like: “No Navy Night”, “Early Rush Chaos”.
 
 **2. Post-Game Reflection**
 After the match: How did your civ perform? (Better/Worse/Same).
+

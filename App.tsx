@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { AppConfig, PlayerCiv, PresetMode, PointUsageMode, MapType } from './types';
-import { generateCivForPlayer, SeededRNG } from './services/generator';
+import { AppConfig, ResolvedAppConfig, PlayerCiv, PresetMode, PointUsageMode, MapType, Archetype, MapSize, Resources, GameSpeed } from './types';
+import { generateCivForPlayer, SeededRNG, resolveMatchConfig } from './services/generator';
 import { encodeConfig, decodeConfig } from './services/share';
 import { SetupScreen } from './components/SetupScreen';
 import { CivCard } from './components/CivCard';
 import { audioService } from './services/audio';
-import { DEFAULT_NAMES, MAP_TYPES, PRESET_MODES, POINT_MODES, EPOCHS } from './constants';
+import { DEFAULT_NAMES, MAP_TYPES, PRESET_MODES, POINT_MODES, EPOCHS, MAP_SIZES, RESOURCES, GAME_SPEEDS } from './constants';
 import { Download, RefreshCw, Globe, Scale, Hourglass, LayoutGrid, Columns, Trophy, Link as LinkIcon, Check, Lock } from 'lucide-react';
 import { DjonStNixLogo } from './components/DjonStNixLogo';
 
@@ -20,17 +20,15 @@ const App: React.FC = () => {
         seed: `EF-${Math.floor(Math.random() * 10000)}`,
 
         // Active
-        preset: 'Casual' as PresetMode,
-        pointUsage: 'Efficient' as PointUsageMode,
-        mapType: 'Land' as MapType,
+        preset: { mode: 'fixed', value: 'Casual', allowed: [...PRESET_MODES] },
+        pointUsage: { mode: 'fixed', value: 'Efficient', allowed: [...POINT_MODES] },
+        mapType: { mode: 'fixed', value: 'Continental', allowed: [...MAP_TYPES] },
+        mapSize: { mode: 'fixed', value: 'Large', allowed: [...MAP_SIZES] },
+        resources: { mode: 'fixed', value: 'Standard', allowed: [...RESOURCES] },
+        gameSpeed: { mode: 'fixed', value: 'Standard', allowed: [...GAME_SPEEDS] },
 
-        // Randomization Defaults
-        isMapRandom: false,
-        allowedMaps: [...MAP_TYPES],
-        isPresetRandom: false,
-        allowedPresets: [...PRESET_MODES],
-        isPointUsageRandom: false,
-        allowedPointUsages: [...POINT_MODES],
+        // Randomization Defaults (Legacy removed)
+
         isEndEpochRandom: false,
         endEpochMin: 1,
         endEpochMax: 15
@@ -39,9 +37,10 @@ const App: React.FC = () => {
     const [civs, setCivs] = useState<PlayerCiv[]>([]);
     const [isForging, setIsForging] = useState(false);
     const [isForged, setIsForged] = useState(false);
-    const [resolvedConfig, setResolvedConfig] = useState<AppConfig | null>(null);
+    const [resolvedConfig, setResolvedConfig] = useState<ResolvedAppConfig | null>(null);
     const [viewMode, setViewMode] = useState<'grid' | 'compare'>('grid');
     const [linkCopied, setLinkCopied] = useState(false);
+    const [seedCopied, setSeedCopied] = useState(false);
     const [isSetupComplete, setIsSetupComplete] = useState(false);
 
     const updateConfig = (updates: Partial<AppConfig>) => {
@@ -53,13 +52,12 @@ const App: React.FC = () => {
 
     const getHeaderText = () => {
         if (!isForged) return "Setting up a match...";
-        const parts = [];
-        parts.push(config.isMapRandom ? "Random World" : `${config.mapType} World`);
-        parts.push(config.isPresetRandom ? "Random Rules" : config.preset);
-        const epochText = config.isEndEpochRandom
-            ? `${epochName(config.startEpoch)} → ?`
-            : `${epochName(config.startEpoch)} → ${epochName(config.endEpoch)}`;
-        return `${parts.join(" · ")} · ${epochText}`;
+        if (resolvedConfig) {
+            const epochText = `${epochName(resolvedConfig.startEpoch)} → ${epochName(resolvedConfig.endEpoch)}`;
+            return `${resolvedConfig.mapType} World · ${resolvedConfig.preset} · ${epochText}`;
+        }
+        // Fallback (shouldn't happen if isForged is true)
+        return "Tactical Report Generated";
     };
 
     useEffect(() => {
@@ -95,43 +93,29 @@ const App: React.FC = () => {
             if (Math.random() > 0.5) audioService.playRandomUnitSound();
         }, 800);
 
-        const finalConfig = cfgOverride ? { ...cfgOverride } : { ...config };
-        const matchRng = new SeededRNG(`match-rules-${finalConfig.seed}`);
+        // 1. Resolve to Strict Config immediately (Conceptually)
+        const initConfig = cfgOverride ? { ...cfgOverride } : { ...config };
 
-        if (finalConfig.isMapRandom && finalConfig.allowedMaps.length > 0) {
-            const index = Math.floor(matchRng.next() * finalConfig.allowedMaps.length);
-            finalConfig.mapType = finalConfig.allowedMaps[index];
-        }
-        if (finalConfig.isPresetRandom && finalConfig.allowedPresets.length > 0) {
-            const index = Math.floor(matchRng.next() * finalConfig.allowedPresets.length);
-            finalConfig.preset = finalConfig.allowedPresets[index];
-        }
-        if (finalConfig.isPointUsageRandom && finalConfig.allowedPointUsages.length > 0) {
-            const index = Math.floor(matchRng.next() * finalConfig.allowedPointUsages.length);
-            finalConfig.pointUsage = finalConfig.allowedPointUsages[index];
-        }
-        if (finalConfig.isEndEpochRandom) {
-            const min = finalConfig.endEpochMin;
-            const max = finalConfig.endEpochMax;
-            const pick = Math.floor(matchRng.next() * (max - min + 1)) + min;
-            finalConfig.endEpoch = pick;
+        // This is THE MOMENT "Random" becomes "Rivers" (or whatever)
+        const resolved = resolveMatchConfig(initConfig);
+
+        // 9. Absolute Sanity Rule (Requested Validaiton)
+        const values = Object.values(resolved);
+        if (values.includes('Random')) {
+            console.error("CRITICAL ERROR: 'Random' found in resolved config!", resolved);
+            alert("System Error: Random resolution failed. Please refresh.");
+            return;
         }
 
-        const quota = Math.floor(finalConfig.playerNames.length / 2);
-        const civRng = new SeededRNG(finalConfig.seed);
-        const indices = finalConfig.playerNames.map((_, i) => i);
-        for (let i = indices.length - 1; i > 0; i--) {
-            const j = Math.floor(civRng.next() * (i + 1));
-            [indices[i], indices[j]] = [indices[j], indices[i]];
-        }
-        const forcedIndices = new Set(indices.slice(0, quota));
+        console.log(`🔒 Resolved Config:`, resolved);
 
-        const generated = finalConfig.playerNames.map((name, idx) =>
-            generateCivForPlayer(finalConfig, name, idx, undefined, forcedIndices.has(idx))
+        // 2. Generate Civs using the PRECISE resolved config
+        const generated = resolved.playerNames.map((name, idx) =>
+            generateCivForPlayer(resolved, name, idx, undefined, true)
         );
 
         setTimeout(() => {
-            setResolvedConfig(finalConfig);
+            setResolvedConfig(resolved); // Store the strict object
             setCivs(generated);
             setIsForged(true);
             setIsForging(false);
@@ -155,6 +139,15 @@ const App: React.FC = () => {
         const newCivs = [...civs];
         newCivs[index] = newCiv;
         setCivs(newCivs);
+    };
+
+    const handleReforgeAll = () => {
+        audioService.playInteraction();
+        const newSeed = `EF-${Math.floor(Math.random() * 10000)}`;
+        const newConfig = { ...config, seed: newSeed };
+        // Deep merge not needed for seed, but robust for structure
+        setConfig(newConfig);
+        handleForge(newConfig);
     };
 
     const exportData = () => {
@@ -245,49 +238,8 @@ const App: React.FC = () => {
                             config={config}
                             onUpdate={updateConfig}
                             onComplete={setIsSetupComplete}
+                            onForge={() => handleForge()}
                         />
-                    </div>
-                )}
-
-                {!isForged && (
-                    <div className="flex flex-col items-center justify-center pt-12 pb-12 w-full font-mono">
-                        {isForging ? (
-                            <div className="flex flex-col items-center animate-pulse space-y-8">
-                                <div className="relative">
-                                    <RefreshCw className="animate-spin text-orange-500" size={80} />
-                                    <div className="absolute inset-0 bg-orange-500/30 blur-[80px] rounded-full" />
-                                </div>
-                                <span className="text-[11px] font-bold text-orange-400 tracking-[0.3em] uppercase italic">Calculating Probabilities...</span>
-                            </div>
-                        ) : isSetupComplete ? (
-                            <div className="flex flex-col items-center gap-10 w-full animate-fade-in-up">
-                                <button onClick={() => handleForge()} className="group relative flex items-center justify-center w-full max-w-lg h-60 font-black text-white transition-all duration-700 bg-[#12141C] rounded-[3.5rem] hover:scale-[1.05] active:scale-[0.95] border-4 border-white/5 hover:border-orange-500/50 shadow-[0_0_100px_rgba(0,0,0,0.9)] overflow-hidden">
-                                    <div className="absolute inset-0 bg-gradient-to-br from-orange-600/40 via-transparent to-orange-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-                                    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                                        {[...Array(20)].map((_, i) => (
-                                            <div key={i} className="absolute bottom-[-10%] w-2 h-2 bg-gradient-to-t from-orange-500 to-amber-200 rounded-full animate-flame-spark"
-                                                style={{ left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 5}s`, animationDuration: `${0.8 + Math.random() * 2}s`, opacity: 0.5 + Math.random() * 0.5 }} />
-                                        ))}
-                                    </div>
-                                    <div className="relative flex flex-col items-center justify-center pt-4">
-                                        <span className="text-[11px] tracking-[0.5em] font-bold text-orange-500/30 mb-4 group-hover:text-orange-400/60 transition-colors uppercase italic">Establish Connection</span>
-                                        <div className="relative">
-                                            <span className="text-9xl md:text-[10rem] tracking-tighter font-black bg-gradient-to-b from-slate-100 via-orange-400 to-orange-800 bg-clip-text text-transparent filter drop-shadow-[0_10px_10px_rgba(0,0,0,0.8)]">FORGE</span>
-                                            <div className="absolute inset-0 blur-3xl bg-orange-500/20 -z-10 group-hover:bg-orange-500/40 transition-colors" />
-                                        </div>
-                                    </div>
-                                </button>
-                                <div className="flex flex-col items-center gap-3">
-                                    <div className="h-0.5 w-12 bg-orange-500/20 rounded-full animate-pulse" />
-                                    <p className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em] animate-pulse">Strategy locked for execution</p>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="flex flex-col items-center gap-3 opacity-30">
-                                <Lock size={20} className="text-slate-800" />
-                                <p className="text-[10px] font-bold text-slate-700 uppercase tracking-[0.2em]">Calculation awaiting inputs</p>
-                            </div>
-                        )}
                     </div>
                 )}
 
@@ -296,14 +248,25 @@ const App: React.FC = () => {
                         <div className="animate-fade-in-up" style={{ animationDelay: '0ms' }}>
                             <div className="text-center py-6 relative">
                                 <div className="mb-4">
-                                    <span className="inline-block bg-[#171A21] px-3 py-1 rounded-full border border-white/5 text-[10px] font-mono text-slate-500 tracking-widest uppercase">
-                                        Match Seed: <span className="text-[#5B8CFF] font-bold">{resolvedConfig.seed}</span>
-                                    </span>
+                                    <button
+                                        onClick={() => { navigator.clipboard.writeText(resolvedConfig.seed); setSeedCopied(true); setTimeout(() => setSeedCopied(false), 2000); }}
+                                        className="inline-block bg-[#171A21] px-3 py-1 rounded-full border border-white/5 text-[10px] font-mono text-slate-500 tracking-widest uppercase hover:text-white hover:border-[#5B8CFF]/50 transition-all"
+                                    >
+                                        {seedCopied ? <span className="text-emerald-400 font-bold">Seed Copied</span> : <span>Match Seed: <span className="text-[#5B8CFF] font-bold">{resolvedConfig.seed}</span></span>}
+                                    </button>
                                 </div>
                                 <div className="flex flex-col md:flex-row items-center justify-center gap-3 md:gap-5 text-slate-200 font-bold text-lg md:text-xl tracking-tight">
-                                    <span className="flex items-center gap-2"><Globe size={20} className="text-emerald-400" />{resolvedConfig.mapType} World</span>
+                                    <span className="flex items-center gap-2">
+                                        <Globe size={20} className="text-emerald-400" />
+                                        {config.isMapRandom && <span className="text-emerald-400/60 text-sm mr-1">[Random]</span>}
+                                        {resolvedConfig.mapType} World
+                                    </span>
                                     <span className="hidden md:block text-slate-600">·</span>
                                     <span className="flex items-center gap-2"><Scale size={20} className="text-amber-400" />{resolvedConfig.preset}</span>
+                                    <span className="hidden md:block text-slate-600">·</span>
+                                    <span className="flex items-center gap-2 text-slate-500 text-sm">
+                                        {resolvedConfig.mapSize} · {resolvedConfig.resources} Res · {resolvedConfig.gameSpeed} Spd
+                                    </span>
                                     <span className="hidden md:block text-slate-600">·</span>
                                     <span className="flex items-center gap-2"><Hourglass size={20} className="text-rose-400" />{epochName(resolvedConfig.startEpoch)} → {epochName(resolvedConfig.endEpoch)}</span>
                                 </div>
@@ -338,14 +301,17 @@ const App: React.FC = () => {
                                 const maxPower = civs.length ? Math.max(...civs.map(c => c.powerScore)) : 0;
                                 return civs.map((civ, idx) => (
                                     <div key={civ.id} className="animate-fade-in-up" style={{ animationDelay: `${150 + (idx * 150)}ms` }}>
-                                        <CivCard civ={civ} onReroll={() => handleReroll(idx)} index={idx} isCompact={viewMode === 'compare'} isTournament={resolvedConfig.preset === 'Tournament'} isTopScore={civ.powerScore === maxPower} />
+                                        <CivCard civ={civ} onReroll={() => handleReroll(idx)} index={idx} isCompact={viewMode === 'compare'} isTournament={resolvedConfig.preset === 'Tournament'} isTopScore={civ.powerScore === maxPower} config={resolvedConfig} />
                                     </div>
                                 ));
                             })()}
                         </div>
 
-                        <div className="text-center pt-12 pb-8">
-                            <button onClick={() => { setIsForged(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-xs font-bold uppercase tracking-widest text-slate-600 hover:text-[#5B8CFF] transition-colors py-4 px-8">
+                        <div className="text-center pt-12 pb-8 flex justify-center gap-8">
+                            <button onClick={handleReforgeAll} className="text-xs font-bold uppercase tracking-widest text-slate-600 hover:text-orange-400 transition-colors py-4 px-8 border border-transparent hover:border-orange-500/20 rounded-xl">
+                                Re-Forge All
+                            </button>
+                            <button onClick={() => { setIsForged(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-xs font-bold uppercase tracking-widest text-slate-600 hover:text-[#5B8CFF] transition-colors py-4 px-8 border border-transparent hover:border-[#5B8CFF]/20 rounded-xl">
                                 Start New Match
                             </button>
                         </div>

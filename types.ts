@@ -7,6 +7,7 @@ export enum GamePhase {
 
 export type BoostCategory =
     | "Civ – Economy"
+    | "Civ – Economy"
     | "Civ – Buildings, Walls & Towers"
     | "Civ – General"
     | "Citizens & Fishing Boats"
@@ -51,6 +52,7 @@ export interface GeneratedItem {
     category?: BoostCategory;
     inflationApplied?: number;
     description?: string;
+    trace?: string; // Decision trace: Why this specific item was chosen
 }
 
 export type Difficulty = 'Beginner' | 'Intermediate' | 'Advanced';
@@ -75,6 +77,7 @@ export interface PlayerCiv {
     warnings: string[]; // Map-aware warnings
     rerollUsed: boolean;
     synergies: SynergyRule[];
+    isValid: boolean; // Flag if civ passed final validation
 }
 
 export interface SynergyRule {
@@ -85,7 +88,40 @@ export interface SynergyRule {
 
 export type PresetMode = 'Casual' | 'Tournament' | 'Chaos' | 'Historical';
 export type PointUsageMode = 'Efficient' | 'Exact' | 'Loose';
-export type MapType = 'Land' | 'Water' | 'Mixed' | 'Islands' | 'Coastal' | 'Rivers' | 'Space' | 'Random';
+export type MapSize = 'Tiny' | 'Small' | 'Medium' | 'Large' | 'Huge';
+export type Resources = 'Low' | 'Standard' | 'High';
+export type GameSpeed = 'Slow' | 'Standard' | 'Fast';
+export type MapCategory = 'land' | 'water' | 'mixed' | 'space';
+
+export type MapType =
+    | "Continental"
+    | "Mediterranean"
+    | "Highlands"
+    | "Plains"
+    | "Large Islands"
+    | "Small Islands"
+    | "Tournament Islands"
+    | "Planets – Earth"
+    | "Planets – Large"
+    | "Planets – Small"
+    | "Planets – Mars"
+    | "Planets – Satellite"
+    | "Planets – Satellite";
+
+export interface MapInfo {
+    id: MapType;
+    label: string;
+    description: string;
+    category: MapCategory;
+    navalSupport: boolean;
+    minEpoch?: number; // For Planets
+}
+
+export interface RandomizableOption<T> {
+    mode: 'fixed' | 'random';
+    value: T; // The selection when in Fixed mode
+    allowed: T[]; // The allowed pool when in Random mode
+}
 
 export interface AppConfig {
     numPlayers: number;
@@ -95,22 +131,39 @@ export interface AppConfig {
     endEpoch: number;
     seed: string;
 
-    // Active / Default Settings
-    preset: PresetMode;
-    pointUsage: PointUsageMode;
-    mapType: MapType;
+    // Randomizable Settings (Mode + Pool Pattern)
+    mapType: RandomizableOption<MapType>;
+    preset: RandomizableOption<PresetMode>;
+    pointUsage: RandomizableOption<PointUsageMode>;
+    mapSize: RandomizableOption<MapSize>;
+    resources: RandomizableOption<Resources>;
+    gameSpeed: RandomizableOption<GameSpeed>;
 
-    // Randomization Settings
-    isMapRandom: boolean;
-    allowedMaps: MapType[];
-
-    isPresetRandom: boolean;
-    allowedPresets: PresetMode[];
-
-    isPointUsageRandom: boolean;
-    allowedPointUsages: PointUsageMode[];
+    // Epochs (Simple for now, can be upgraded later)
 
     isEndEpochRandom: boolean;
     endEpochMin: number;
     endEpochMax: number;
+}
+
+export type ConcreteMapType = Exclude<MapType, 'Random'>;
+export type ConcretePresetMode = Exclude<PresetMode, 'Random'>; // PresetMode currently doesn't have Random in Enum but it's good practice
+export type ConcretePointUsageMode = Exclude<PointUsageMode, 'Random'>; // PointUsageMode doesn't have Random either
+export type ConcreteArchetype = Exclude<Archetype, 'Random'>;
+
+export interface ResolvedAppConfig {
+    numPlayers: number;
+    playerNames: string[];
+    playerArchetypes: ConcreteArchetype[];
+    startEpoch: number;
+    endEpoch: number;
+    seed: string;
+
+    // These MUST be concrete values, never 'Random'
+    preset: PresetMode;
+    pointUsage: PointUsageMode;
+    mapType: ConcreteMapType;
+    mapSize: MapSize;
+    resources: Resources;
+    gameSpeed: GameSpeed;
 }

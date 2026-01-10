@@ -1,5 +1,5 @@
 
-import { Boost, CivPower, Heading, GamePhase, MapType, PresetMode, PointUsageMode, Archetype, SynergyRule } from './types';
+import { Boost, CivPower, Heading, GamePhase, MapType, PresetMode, PointUsageMode, Archetype, SynergyRule, MapInfo, MapSize, Resources, GameSpeed } from './types';
 
 export const EPOCHS = [
     { id: 1, name: "Stone Age" },
@@ -19,15 +19,19 @@ export const EPOCHS = [
     { id: 15, name: "Digital Age" },
 ];
 
-export const MAP_TYPES_INFO: Record<MapType, { description: string }> = {
-    'Land': { description: 'Open plains and rolling hills. Classic land warfare.' },
-    'Water': { description: 'Dominant oceans. Naval supremacy is mandatory.' },
-    'Mixed': { description: 'Balanced terrain with significant land and water.' },
-    'Islands': { description: 'Small landmasses separated by deep sea. Transport is key.' },
-    'Coastal': { description: 'Large landmass with one major coastline.' },
-    'Rivers': { description: 'Land divided by natural water barriers.' },
-    'Space': { description: 'High-tech void combat. Modern and future units only.' },
-    'Random': { description: 'The forge chooses the battlefield.' }
+export const MAP_TYPES_INFO: Record<MapType, MapInfo> = {
+    'Continental': { id: 'Continental', label: 'Continental', description: 'Large landmasses separated by oceans.', category: 'land', navalSupport: false },
+    'Mediterranean': { id: 'Mediterranean', label: 'Mediterranean', description: 'Inland sea surrounded by land.', category: 'mixed', navalSupport: true },
+    'Highlands': { id: 'Highlands', label: 'Highlands', description: 'Mountainous terrain with chokepoints.', category: 'land', navalSupport: false },
+    'Plains': { id: 'Plains', label: 'Plains', description: 'Open flatlands ideal for cavalry.', category: 'land', navalSupport: false },
+    'Large Islands': { id: 'Large Islands', label: 'Large Islands', description: 'Multiple large islands.', category: 'mixed', navalSupport: true },
+    'Small Islands': { id: 'Small Islands', label: 'Small Islands', description: 'Archipelago of small islands.', category: 'water', navalSupport: true },
+    'Tournament Islands': { id: 'Tournament Islands', label: 'Tournament Islands', description: 'Balanced islands for competitive play.', category: 'water', navalSupport: true },
+    'Planets – Earth': { id: 'Planets – Earth', label: 'Planets – Earth', description: 'The homeworld.', category: 'space', navalSupport: false, minEpoch: 14 },
+    'Planets – Large': { id: 'Planets – Large', label: 'Planets – Large', description: 'A massive alien world.', category: 'space', navalSupport: false, minEpoch: 14 },
+    'Planets – Small': { id: 'Planets – Small', label: 'Planets – Small', description: 'A small rocky planetoid.', category: 'space', navalSupport: false, minEpoch: 14 },
+    'Planets – Mars': { id: 'Planets – Mars', label: 'Planets – Mars', description: 'The red planet.', category: 'space', navalSupport: false, minEpoch: 14 },
+    'Planets – Satellite': { id: 'Planets – Satellite', label: 'Planets – Satellite', description: 'Orbital station warfare.', category: 'space', navalSupport: false, minEpoch: 14 }
 };
 
 export const PRESET_MODES_INFO: Record<PresetMode, { description: string }> = {
@@ -46,6 +50,9 @@ export const POINT_MODES_INFO: Record<PointUsageMode, { description: string }> =
 export const MAP_TYPES: MapType[] = Object.keys(MAP_TYPES_INFO) as MapType[];
 export const PRESET_MODES: PresetMode[] = Object.keys(PRESET_MODES_INFO) as PresetMode[];
 export const POINT_MODES: PointUsageMode[] = Object.keys(POINT_MODES_INFO) as PointUsageMode[];
+export const MAP_SIZES: MapSize[] = ['Tiny', 'Small', 'Medium', 'Large', 'Huge'];
+export const RESOURCES: Resources[] = ['Low', 'Standard', 'High'];
+export const GAME_SPEEDS: GameSpeed[] = ['Slow', 'Standard', 'Fast'];
 
 export const ARCHETYPES: Archetype[] = [
     'Random', 'Economic', 'Aggressive', 'Defensive', 'Naval', 'Balanced'

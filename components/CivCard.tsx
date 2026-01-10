@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { toPng } from 'html-to-image';
-import { PlayerCiv, GeneratedItem, Difficulty } from '../types';
-import { HEADINGS } from '../constants';
+import { PlayerCiv, GeneratedItem, Difficulty, ResolvedAppConfig } from '../types';
+import { HEADINGS, EPOCHS } from '../constants';
 import { StrengthBar } from './StrengthBar';
 import { Tooltip } from './Tooltip';
 import { audioService } from '../services/audio';
@@ -27,7 +27,9 @@ import {
     Anchor,
     Search,
     User,
-    CornerDownRight
+    CornerDownRight,
+    Globe,
+    Hourglass
 } from 'lucide-react';
 
 interface Props {
@@ -37,9 +39,10 @@ interface Props {
     isCompact?: boolean;
     isTournament?: boolean;
     isTopScore?: boolean;
+    config?: ResolvedAppConfig;
 }
 
-export const CivCard: React.FC<Props> = ({ civ, onReroll, index, isCompact = false, isTournament = false, isTopScore = false }) => {
+export const CivCard: React.FC<Props> = ({ civ, onReroll, index, isCompact = false, isTournament = false, isTopScore = false, config }) => {
     const [expanded, setExpanded] = useState(false);
     const [copied, setCopied] = useState(false);
     const [showReasoning, setShowReasoning] = useState(false);
@@ -127,6 +130,8 @@ export const CivCard: React.FC<Props> = ({ civ, onReroll, index, isCompact = fal
         return `Inflation Adjustment: +${item.inflationApplied}PT (Sector Saturation)`;
     };
 
+    const epochName = (id: number) => EPOCHS.find(e => e.id === id)?.name || id;
+
     return (
         <div
             ref={cardRef}
@@ -184,8 +189,8 @@ export const CivCard: React.FC<Props> = ({ civ, onReroll, index, isCompact = fal
                         </div>
                         <p className="text-lg text-slate-300 font-medium leading-[1.6] italic tracking-tight mb-4">
                             "{civ.summary}"
-                            <button onClick={() => setShowReasoning(!showReasoning)} className="ml-3 p-1 rounded-lg hover:bg-white/5 text-slate-600 hover:text-orange-500 transition-all">
-                                <Search size={16} />
+                            <button onClick={() => setShowReasoning(!showReasoning)} className="ml-3 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[#5B8CFF] hover:text-white bg-[#5B8CFF]/10 hover:bg-[#5B8CFF]/20 border border-[#5B8CFF]/30 rounded-lg transition-all">
+                                [ Why this build? ]
                             </button>
                         </p>
                         {showReasoning && (
@@ -234,12 +239,27 @@ export const CivCard: React.FC<Props> = ({ civ, onReroll, index, isCompact = fal
 
                         {expanded && (
                             <div className="mt-4 space-y-8 animate-fade-in p-6 bg-[#171A21] rounded-[2.5rem] border-2 border-white/5">
+                                {config && (
+                                    <div className="px-4 py-3 bg-[#12141C] rounded-xl border border-white/5 flex flex-wrap items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-6">
+                                        <span className="text-slate-600 italic">Eligible due to:</span>
+                                        <span className="flex items-center gap-1.5"><Globe size={12} className="text-emerald-500/60" /> {config.mapType} World</span>
+                                        <span className="w-1 h-1 rounded-full bg-slate-700" />
+                                        <span className="flex items-center gap-1.5"><Swords size={12} className="text-amber-500/60" /> {config.preset} Set</span>
+                                        <span className="w-1 h-1 rounded-full bg-slate-700" />
+                                        <span className="flex items-center gap-1.5"><Hourglass size={12} className="text-rose-500/60" /> Ends: {epochName(config.endEpoch)}</span>
+                                    </div>
+                                )}
                                 {Object.entries(groupedItems).map(([category, items]) => (
                                     <div key={category} className="space-y-4">
                                         <div className="flex items-center gap-3">
                                             <div className="h-px flex-1 bg-white/5" />
                                             <h4 className="text-[10px] font-bold text-orange-500/60 uppercase tracking-[0.4em]">
-                                                {category}
+                                                {category} {(() => {
+                                                    const heading = HEADINGS.find(h => h.name === category);
+                                                    return (heading?.bonusCost ?? 0) > 0
+                                                        ? <span className="ml-2 text-[9px] text-amber-500/60 normal-case tracking-normal">(Inflation: +{heading?.bonusCost} per additional)</span>
+                                                        : null;
+                                                })()}
                                             </h4>
                                             <div className="h-px flex-1 bg-white/5" />
                                         </div>
@@ -278,6 +298,14 @@ export const CivCard: React.FC<Props> = ({ civ, onReroll, index, isCompact = fal
                                         </div>
                                     </div>
                                 ))}
+                                <div className="mt-8 pt-6 border-t border-white/5 flex justify-between items-center text-[10px] font-mono uppercase tracking-widest text-slate-500">
+                                    <span>Point Breakdown:</span>
+                                    <div className="flex gap-4">
+                                        <span>Base: <span className="text-slate-300">100</span></span>
+                                        <span>Spent: <span className="text-orange-400">{civ.pointsSpent}</span></span>
+                                        <span>Remaining: <span className="text-emerald-400">{100 - civ.pointsSpent}</span></span>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -294,7 +322,7 @@ export const CivCard: React.FC<Props> = ({ civ, onReroll, index, isCompact = fal
                             className={`flex items-center gap-3 px-6 py-3 rounded-2xl transition-all font-mono text-[10px] font-bold uppercase tracking-[0.2em] border-2 ${civ.rerollUsed || isTournament ? 'bg-white/5 border-transparent text-slate-800 cursor-not-allowed opacity-40' : 'bg-[#171A21] border-white/10 text-slate-500 hover:text-slate-100 hover:border-orange-500/50 hover:bg-orange-600/10 active:scale-95 shadow-xl'}`}
                         >
                             <RefreshCw size={14} className={!(civ.rerollUsed || isTournament) ? "animate-spin-slow" : ""} />
-                            {isTournament ? "System Lock" : (civ.rerollUsed ? "Used" : "Reroll")}
+                            {isTournament ? "System Lock" : (civ.rerollUsed ? "Used" : "Re-Forge")}
                         </button>
                     </Tooltip>
                 </div>

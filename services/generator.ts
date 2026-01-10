@@ -1,5 +1,5 @@
-import { BOOSTS, CIV_POWERS, HEADINGS, SYNERGIES } from '../constants';
-import { Boost, BoostCategory, CivPower, GeneratedItem, PlayerCiv, AppConfig, Heading, GamePhase, MapType, Difficulty, Archetype, SynergyRule } from '../types';
+import { BOOSTS, CIV_POWERS, HEADINGS, SYNERGIES, MAP_TYPES_INFO, ARCHETYPES, MAP_TYPES, PRESET_MODES, POINT_MODES, MAP_SIZES, RESOURCES, GAME_SPEEDS } from '../constants';
+import { Boost, BoostCategory, CivPower, GeneratedItem, PlayerCiv, AppConfig, ResolvedAppConfig, ConcreteMapType, ConcreteArchetype, Heading, GamePhase, MapType, Difficulty, Archetype, SynergyRule, MapInfo, RandomizableOption, PresetMode, PointUsageMode, MapSize, Resources, GameSpeed } from '../types';
 
 export class SeededRNG {
     private seed: number;
@@ -27,42 +27,155 @@ export class SeededRNG {
         }
         return items[items.length - 1];
     }
+
+    // Generic pick
+    pick<T>(items: T[]): T {
+        if (!items || items.length === 0) throw new Error("RNG Pick: Empty pool");
+        return items[Math.floor(this.next() * items.length)];
+    }
 }
 
-const getMapWeight = (item: Boost | CivPower, mapType: MapType): number => {
+export const resolveMatchConfig = (config: AppConfig): ResolvedAppConfig => {
+    const rng = new SeededRNG(config.seed);
+
+    // --- Helper: Generic Option Resolver ---
+    // Picks Fixed Value or Randomly from Allowed Pool
+    const resolveOption = <T>(option: RandomizableOption<T>, defaultValue: T, fallbackPool: T[]): T => {
+        if (option.mode === 'fixed') return option.value;
+
+        // Random Mode
+        const pool = option.allowed && option.allowed.length > 0 ? option.allowed : fallbackPool;
+        return rng.pick(pool);
+    };
+
+    // --- 1. Map Type Resolution ---
+    let mapType = resolveOption(config.mapType, 'Continental', MAP_TYPES);
+
+    // Apply strict Map Logic (Planets gating, Space priority) 
+    if (config.mapType.mode === 'random') {
+        let pool = config.mapType.allowed.length ? config.mapType.allowed : MAP_TYPES;
+
+        // Filter out Planets if Era is too early
+        if (config.endEpoch < 14) {
+            pool = pool.filter(m => !m.startsWith('Planets'));
+        }
+
+        if (pool.length === 0) pool = ['Continental']; // Safety fallback
+
+        // Apply Weighted Selection for Map Type
+        const spaceMaps = pool.filter(m => MAP_TYPES_INFO[m].category === 'space');
+        const normalMaps = pool.filter(m => MAP_TYPES_INFO[m].category !== 'space');
+
+        if (spaceMaps.length > 0 && normalMaps.length > 0) {
+            // If we have both, 10% chance for Space, 90% for Normal
+            mapType = rng.next() < 0.1 ? rng.pick(spaceMaps) : rng.pick(normalMaps);
+        } else {
+            mapType = rng.pick(pool);
+        }
+    }
+
+    // --- 2. Other Options Resolution ---
+    const preset = resolveOption(config.preset, 'Casual', PRESET_MODES);
+    const pointUsage = resolveOption(config.pointUsage, 'Efficient', POINT_MODES);
+    const mapSize = resolveOption(config.mapSize, 'Large', MAP_SIZES);
+    const resources = resolveOption(config.resources, 'Standard', RESOURCES);
+    const gameSpeed = resolveOption(config.gameSpeed, 'Standard', GAME_SPEEDS);
+
+    const resolvedConfig: ResolvedAppConfig = {
+        numPlayers: config.numPlayers,
+        playerNames: config.playerNames,
+        playerArchetypes: [], // Filled below
+        startEpoch: config.startEpoch,
+        endEpoch: config.endEpoch,
+        seed: config.seed, // Persist seed
+
+        // Resolved Values
+        preset,
+        pointUsage,
+        mapType,
+        mapSize,
+        resources,
+        gameSpeed
+    };
+
+    // --- 3. Resolve Archetypes ---
+    resolvedConfig.playerArchetypes = config.playerArchetypes.map(arch => {
+        if (arch !== 'Random') return arch as ConcreteArchetype;
+        return rng.pick(ARCHETYPES.filter(a => a !== 'Random')) as ConcreteArchetype;
+    });
+
+    return resolvedConfig;
+};
+
+const getMatchWeight = (item: Boost | CivPower, config: ResolvedAppConfig): number => {
     let weight = 1.0;
     const name = item.name.toLowerCase();
     const cat = 'category' in item ? item.category : '';
+    const mapInfo = MAP_TYPES_INFO[config.mapType];
 
-    // Hard Exclusions & Strong Preferences
-    if (mapType === 'Land') {
-        if (cat === 'Ships' || name.includes('fishing')) return 0;
-        if (cat.includes('Infantry') || cat.includes('Economy') || cat.includes('Buildings')) weight = 1.5;
+    if (!mapInfo) return 1.0;
+
+    // 1. Strict Naval Exclusion
+    if (mapInfo.navalSupport === false) {
+        if (cat === 'Ships' || name.includes('fishing') || name.includes('naval')) return 0;
     }
-    else if (mapType === 'Water') {
+
+    // 2. Map Category Weighting
+    if (mapInfo.category === 'land') {
+        if (cat.includes('Infantry') || cat.includes('Buildings') || cat.includes('Economy')) weight = 1.4;
+        if (cat.includes('Cavalry')) weight = 1.2;
+    } else if (mapInfo.category === 'water') {
         if (cat === 'Ships' || name.includes('fishing')) weight = 3.0;
         if (cat.includes('Cavalry')) weight = 0.5;
-    }
-    else if (mapType === 'Islands') {
-        if (cat === 'Ships' || cat === 'Aircraft' || name === 'Expansionism') weight = 2.0;
-        if (cat.includes('Cavalry')) weight = 0.8;
-    }
-    else if (mapType === 'Space') {
+    } else if (mapInfo.category === 'mixed') {
+        if (cat === 'Ships') weight = 1.2;
+    } else if (mapInfo.category === 'space') {
         if (cat === 'Aircraft' || cat === 'Tanks' || cat === 'Cyber') weight = 2.5;
         if (name.includes('farming') || name.includes('hunting')) weight = 0.1;
         if (cat === 'Ships') return 0;
     }
-    else if (mapType === 'Coastal' || mapType === 'Rivers') {
-        if (cat === 'Ships') weight = 1.2; // Balanced water
-        if (name.includes('fishing')) weight = 1.2;
+
+    // 3. Specific Map Nuances
+    if (mapInfo.id === 'Large Islands' || mapInfo.id === 'Small Islands' || mapInfo.id === 'Tournament Islands') {
+        if (name === 'Expansionism') weight = 2.0;
+    }
+
+    // 4. Map Size Weighting
+    if (config.mapSize === 'Tiny' || config.mapSize === 'Small') {
+        if (name.includes('infantry') || name.includes('attack') || name === 'expansionism' || cat.includes('Infantry')) weight *= 1.3;
+        if (cat.includes('Economy') || cat.includes('Buildings')) weight *= 0.8;
+    } else if (config.mapSize === 'Large' || config.mapSize === 'Huge') {
+        if (cat.includes('Economy')) weight *= 1.3;
+        if (cat.includes('Cavalry')) weight *= 1.2;
+        if (cat.includes('Infantry')) weight *= 0.9;
+    }
+
+    // 5. Resources Weighting
+    const baseCost = 'cost' in item ? item.cost : item.baseCost;
+    if (config.resources === 'Low') {
+        if (cat.includes('Economy')) weight *= 1.4;
+        if (name.includes('discount') || name.includes('cheap')) weight *= 1.3;
+        if (baseCost > 30) weight *= 0.7;
+    } else if (config.resources === 'High') {
+        if (baseCost > 30) weight *= 1.3;
+        if (cat.includes('Tanks') || cat.includes('Aircraft')) weight *= 1.2;
+    }
+
+    // 6. Game Speed Weighting
+    if (config.gameSpeed === 'Fast') {
+        // Boosts tagged 'Early' get a nudge
+        if ('tags' in item && (item as any).tags?.includes('Early')) weight *= 1.3;
+    } else if (config.gameSpeed === 'Slow') {
+        if (cat.includes('Economy')) weight *= 1.2;
+        if ('tags' in item && (item as any).tags?.includes('Late')) weight *= 1.3;
     }
 
     return weight;
 };
 
 // Bias weights based on user preference
-const getArchetypeBias = (item: Boost | CivPower, archetype: Archetype): number => {
-    if (!archetype || archetype === 'Random') return 1.0;
+const getArchetypeBias = (item: Boost | CivPower, archetype: ConcreteArchetype): number => {
+    if (!archetype) return 1.0;
 
     const cat = 'category' in item ? item.category : '';
     const name = item.name;
@@ -94,7 +207,7 @@ const getArchetypeBias = (item: Boost | CivPower, archetype: Archetype): number 
 };
 
 export const generateCivForPlayer = (
-    config: AppConfig,
+    config: ResolvedAppConfig,
     playerName: string,
     playerIndex: number,
     forceSeed?: string,
@@ -103,7 +216,7 @@ export const generateCivForPlayer = (
     // Unique seed per player based on main seed + name + index
     const seedString = forceSeed || `${config.seed}-${playerName}-${playerIndex}`;
     const rng = new SeededRNG(seedString);
-    const archetype = config.playerArchetypes[playerIndex] || 'Random';
+    const archetype = config.playerArchetypes[playerIndex]; // guaranteed Concrete
 
     let points = 100;
     const items: GeneratedItem[] = [];
@@ -112,7 +225,11 @@ export const generateCivForPlayer = (
     const warnings: string[] = [];
 
     // Map vs Archetype Warnings (Generated once)
-    if (archetype === 'Naval' && (config.mapType === 'Land' || config.mapType === 'Space')) {
+    // Update warning to check navalSupport property instead of hardcoded 'Land'/'Space'
+    // But we don't have MAP_TYPES_INFO[config.mapType] easily accessible unless we import it or look it up.
+    // We imported it.
+    const mapInfo = MAP_TYPES_INFO[config.mapType];
+    if (archetype === 'Naval' && mapInfo && mapInfo.navalSupport === false) {
         warnings.push(`Naval archetype preference was suppressed due to ${config.mapType} map rules.`);
     }
 
@@ -128,17 +245,28 @@ export const generateCivForPlayer = (
         p.minEpoch <= config.endEpoch // Power starts before game ends
     );
 
-    // Pre-selection Logic for ensurePower
+    // 2. Pre-selection Logic for ensurePower (MANDATORY UPDATE)
     if (ensurePower) {
-        // Filter powers that fit map/epoch and cost <= 100
-        const affordablePowers = validPowers.filter(p => {
-            if (getMapWeight(p, config.mapType) === 0) return false;
+        // STRICT: We MUST find a power. If standard filtering fails, we relax constraints (but never Map rules if possible)
+        let candidates = validPowers.filter(p => {
+            // Strict check using weight function (handles naval/map logic)
+            if (getMatchWeight(p, config) === 0) return false;
             return p.cost <= points;
         });
 
-        if (affordablePowers.length > 0) {
-            const weights = affordablePowers.map(p => getMapWeight(p, config.mapType) * getArchetypeBias(p, archetype));
-            const p = rng.pickWeighted(affordablePowers, weights);
+        // Fallback: If no affordable powers fit the map perfectly, allow ANY affordable valid power
+        // WARNING: This breaks 'Strict Map' rules if we are forced to pick *something*.
+        // But the user requested "Guaranteed Civ Power". 
+        // We will try to pick the "least bad" option? Or just pick one.
+        if (candidates.length === 0) {
+            candidates = validPowers.filter(p => p.cost <= points);
+        }
+
+        if (candidates.length > 0) {
+            const weights = candidates.map(p => getMatchWeight(p, config) * getArchetypeBias(p, archetype));
+            // If weights are 0 because of fallback, treat them as 1.0 (uniform random fallback)
+            const safeWeights = weights.map(w => w === 0 ? 1.0 : w);
+            const p = rng.pickWeighted(candidates, safeWeights);
 
             items.push({
                 name: p.name,
@@ -149,6 +277,7 @@ export const generateCivForPlayer = (
             });
             points -= p.cost;
             takenItems.add(p.name);
+            categoryCounts['Power'] = (categoryCounts['Power'] || 0) + 1;
         }
     }
 
@@ -170,13 +299,13 @@ export const generateCivForPlayer = (
         // Calculate all currently affordable options
         const affordableBoosts = validBoosts.filter(b => {
             if (takenItems.has(b.name)) return false;
-            if (getMapWeight(b, config.mapType) === 0) return false; // Map Exclusion
+            if (getMatchWeight(b, config) === 0) return false; // Map Exclusion
             return getBoostCost(b) <= points;
         });
 
         const affordablePowers = validPowers.filter(p => {
             if (takenItems.has(p.name)) return false;
-            if (getMapWeight(p, config.mapType) === 0) return false; // Map Exclusion
+            if (getMatchWeight(p, config) === 0) return false; // Map Exclusion
             return p.cost <= points;
         });
 
@@ -210,7 +339,7 @@ export const generateCivForPlayer = (
 
         // Apply Map Weights + Preset Modifiers
         const weights = candidateOptions.map(o => {
-            let w = getMapWeight(o.item, config.mapType);
+            let w = getMatchWeight(o.item, config);
 
             // Apply Archetype Bias (Soft Nudge)
             w *= getArchetypeBias(o.item, archetype);
@@ -234,10 +363,30 @@ export const generateCivForPlayer = (
                 if (o.type === 'boost' && o.cost > 20) w *= 0.8;
             }
 
+            // SYNERGY BIAS (Fine-tuning for "Builds that make sense")
+            // If we have items in a category, drastically increase weight of same-category items
+            if (o.type === 'boost' && o.item.category) {
+                const count = categoryCounts[o.item.category] || 0;
+                if (count > 0) {
+                    // Momentum: The more you have, the more you want. 
+                    // This creates themed builds (e.g. All Cavalry) rather than scattered soup.
+                    w *= (1.0 + (count * 0.6));
+                }
+            }
+
             return w;
         });
 
         const selection = rng.pickWeighted(candidateOptions, weights);
+        const itemWeight = weights[candidateOptions.indexOf(selection)];
+
+        // Trace decision: Determine if bias was significant
+        let trace = "Standard roll";
+        const mapWeight = getMatchWeight(selection.item, config);
+        const archWeight = getArchetypeBias(selection.item, archetype);
+        if (mapWeight > 1.1) trace = `Favored by ${config.mapType} map rules`;
+        else if (archWeight > 1.1) trace = `Influenced by ${archetype} archetype`;
+        else if (selection.cost === points && config.pointUsage === 'Exact') trace = "Chosen to match point target exactly";
 
         if (selection.type === 'boost') {
             const b = selection.item as Boost;
@@ -252,7 +401,8 @@ export const generateCivForPlayer = (
                 type: 'boost',
                 category: b.category,
                 inflationApplied: count * heading.bonusCost,
-                description: `${b.name} for ${b.category.split('–').pop()?.trim() || b.category}.`
+                description: `${b.name} for ${b.category.split('–').pop()?.trim() || b.category}.`,
+                trace
             });
 
             points -= cost;
@@ -265,12 +415,45 @@ export const generateCivForPlayer = (
                 cost: p.cost,
                 originalCost: p.cost,
                 type: 'power',
-                description: p.description
+                description: p.description,
+                trace
             });
             points -= p.cost;
             takenItems.add(p.name);
         }
     }
+
+    // --- Validation Step ---
+    const validateCiv = (civItems: GeneratedItem[]): boolean => {
+        const total = civItems.reduce((sum, i) => sum + i.cost, 0);
+        if (total > 100) return false;
+
+        const names = new Set<string>();
+        for (const i of civItems) {
+            if (names.has(i.name)) return false; // Duplicate
+            names.add(i.name);
+
+            // Epoch validation
+            if (i.type === 'power') {
+                const p = CIV_POWERS.find(x => x.name === i.name);
+                if (p && p.minEpoch > config.endEpoch) return false;
+            } else {
+                const heading = HEADINGS.find(h => h.name === i.category);
+                if (heading && heading.minEpoch > config.endEpoch) return false;
+            }
+
+            // Map validation (Strict)
+            const itemRef = i.type === 'power'
+                ? CIV_POWERS.find(x => x.name === i.name)
+                : BOOSTS.find(x => x.name === i.name);
+
+            // If getMapWeight returns 0, it means it is FORBIDDEN on this map
+            if (itemRef && getMatchWeight(itemRef, config) === 0) return false;
+        }
+        return true;
+    };
+
+    const isValid = validateCiv(items);
 
     // Ratings Calculation
     const ratings = { early: 0, mid: 0, late: 0 };
@@ -414,7 +597,7 @@ export const generateCivForPlayer = (
     let reasoning = `Generated for a ${config.mapType} world using ${config.preset} rules.`;
     if (config.preset === 'Chaos') reasoning += " Chaos mode amplified streakiness.";
     if (config.preset === 'Tournament') reasoning += " Tournament rules favored efficiency.";
-    if (archetype !== 'Random') reasoning += ` ${archetype} archetype preference influenced choices.`;
+    reasoning += ` ${archetype} archetype preference influenced choices.`;
     if (primary) {
         reasoning += ` The ${shortCatNames[primary[0]] || primary[0]} focus emerged naturally from the seed.`;
     }
@@ -438,6 +621,7 @@ export const generateCivForPlayer = (
             return SYNERGIES.filter(rule =>
                 rule.items.every(requiredItem => itemNames.has(requiredItem))
             );
-        })(items)
+        })(items),
+        isValid
     };
 };
