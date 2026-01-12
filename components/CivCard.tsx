@@ -313,8 +313,8 @@ export const CivCard: React.FC<Props> = ({ civ, onReroll, index, isCompact = fal
             )}
 
             {/* Control Interface */}
-            <div className={`mt-8 pt-8 border-t-2 border-white/5 flex justify-between items-center relative z-10 ${isCompact ? 'mt-auto' : 'pl-4 md:pl-20'}`}>
-                <div className={isCompact ? '' : 'pl-12'}>
+            <div className={`mt-8 pt-8 border-t-2 border-white/5 flex flex-wrap justify-between items-center gap-6 relative z-10 ${isCompact ? 'mt-auto' : 'md:pl-20'}`}>
+                <div className="px-2">
                     <Tooltip content={isTournament ? "Tournament Lock Active" : civ.rerollUsed ? "Reroll Expended" : "Regenerate Path"}>
                         <button
                             onClick={onReroll}

@@ -246,51 +246,73 @@ const App: React.FC = () => {
                 {isForged && resolvedConfig && (
                     <div id="results-feed" className="space-y-12 pt-4">
                         <div className="animate-fade-in-up" style={{ animationDelay: '0ms' }}>
-                            <div className="text-center py-6 relative">
-                                <div className="mb-4">
+                            <div className="flex flex-col items-center gap-6 py-8 border-b border-white/10 relative">
+                                {/* Match Seed Bar */}
+                                <div>
                                     <button
                                         onClick={() => { navigator.clipboard.writeText(resolvedConfig.seed); setSeedCopied(true); setTimeout(() => setSeedCopied(false), 2000); }}
-                                        className="inline-block bg-[#171A21] px-3 py-1 rounded-full border border-white/5 text-[10px] font-mono text-slate-500 tracking-widest uppercase hover:text-white hover:border-[#5B8CFF]/50 transition-all"
+                                        className="inline-block bg-[#171A21] px-4 py-1.5 rounded-full border border-white/5 text-[10px] font-mono text-slate-500 tracking-widest uppercase hover:text-white hover:border-[#5B8CFF]/50 transition-all shadow-lg"
                                     >
                                         {seedCopied ? <span className="text-emerald-400 font-bold">Seed Copied</span> : <span>Match Seed: <span className="text-[#5B8CFF] font-bold">{resolvedConfig.seed}</span></span>}
                                     </button>
                                 </div>
-                                <div className="flex flex-col md:flex-row items-center justify-center gap-3 md:gap-5 text-slate-200 font-bold text-lg md:text-xl tracking-tight">
-                                    <span className="flex items-center gap-2">
-                                        <Globe size={20} className="text-emerald-400" />
-                                        {config.isMapRandom && <span className="text-emerald-400/60 text-sm mr-1">[Random]</span>}
-                                        {resolvedConfig.mapType} World
-                                    </span>
-                                    <span className="hidden md:block text-slate-600">·</span>
-                                    <span className="flex items-center gap-2"><Scale size={20} className="text-amber-400" />{resolvedConfig.preset}</span>
-                                    <span className="hidden md:block text-slate-600">·</span>
-                                    <span className="flex items-center gap-2 text-slate-500 text-sm">
-                                        {resolvedConfig.mapSize} · {resolvedConfig.resources} Res · {resolvedConfig.gameSpeed} Spd
-                                    </span>
-                                    <span className="hidden md:block text-slate-600">·</span>
-                                    <span className="flex items-center gap-2"><Hourglass size={20} className="text-rose-400" />{epochName(resolvedConfig.startEpoch)} → {epochName(resolvedConfig.endEpoch)}</span>
-                                </div>
-                                <div className="mt-2 text-sm font-medium text-slate-500 flex items-center justify-center gap-2">
-                                    <span>Point Logic: <span className="text-slate-400">{resolvedConfig.pointUsage}</span></span>
+
+                                {/* Main Tactical Info */}
+                                <div className="space-y-4 w-full flex flex-col items-center">
+                                    <div className="flex flex-wrap items-center justify-center gap-y-3 gap-x-6 text-slate-200 font-bold text-lg md:text-2xl tracking-tight text-center px-4">
+                                        <span className="flex items-center gap-2 whitespace-nowrap">
+                                            <Globe size={22} className="text-emerald-400" />
+                                            {config.isMapRandom && <span className="text-emerald-400/60 text-sm mr-1">[Random]</span>}
+                                            {resolvedConfig.mapType} World
+                                        </span>
+                                        <span className="hidden md:block text-slate-700">|</span>
+                                        <span className="flex items-center gap-2 whitespace-nowrap"><Scale size={22} className="text-amber-400" />{resolvedConfig.preset}</span>
+                                        <span className="hidden md:block text-slate-700">|</span>
+                                        <span className="flex items-center gap-2 whitespace-nowrap"><Hourglass size={22} className="text-rose-400" />{epochName(resolvedConfig.startEpoch)} → {epochName(resolvedConfig.endEpoch)}</span>
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs font-mono uppercase tracking-[0.2em] text-slate-500">
+                                        <span className="bg-white/5 px-2 py-0.5 rounded-md border border-white/5">{resolvedConfig.mapSize}</span>
+                                        <span className="bg-white/5 px-2 py-0.5 rounded-md border border-white/5">{resolvedConfig.resources} Resources</span>
+                                        <span className="bg-white/5 px-2 py-0.5 rounded-md border border-white/5">{resolvedConfig.gameSpeed} Speed</span>
+                                        <span className="text-slate-600">·</span>
+                                        <span className="text-slate-400 italic">Point Logic: {resolvedConfig.pointUsage}</span>
+                                    </div>
+
                                     {resolvedConfig.preset === 'Tournament' && (
-                                        <span className="ml-2 px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1"><Trophy size={10} /> Tournament Lock Active</span>
+                                        <div className="px-3 py-1 rounded bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 mt-2">
+                                            <Trophy size={12} /> Tournament Lock Active
+                                        </div>
                                     )}
                                 </div>
-                                <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden lg:flex gap-2">
-                                    <button onClick={handleShareLink} className="p-2 text-slate-600 hover:text-white hover:bg-white/5 rounded-lg transition-colors relative">
-                                        {linkCopied ? <Check size={20} className="text-emerald-400" /> : <LinkIcon size={20} />}
+
+                                {/* Utility Bar */}
+                                <div className="flex items-center justify-center gap-2 md:gap-4 mt-2">
+                                    <button
+                                        onClick={handleShareLink}
+                                        className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl border border-white/5 text-[10px] font-bold uppercase tracking-widest text-[#5B8CFF] transition-all"
+                                        title="Copy Share Link"
+                                    >
+                                        {linkCopied ? <Check size={14} className="text-emerald-400" /> : <LinkIcon size={14} />}
+                                        <span className="hidden sm:inline">{linkCopied ? "Copied" : "Share"}</span>
                                     </button>
-                                    <button onClick={() => setViewMode(prev => prev === 'grid' ? 'compare' : 'grid')} className="p-2 text-slate-600 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-                                        {viewMode === 'grid' ? <Columns size={20} /> : <LayoutGrid size={20} />}
+
+                                    <button
+                                        onClick={() => setViewMode(prev => prev === 'grid' ? 'compare' : 'grid')}
+                                        className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl border border-white/5 text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-all"
+                                        title="Change View Mode"
+                                    >
+                                        {viewMode === 'grid' ? <Columns size={14} /> : <LayoutGrid size={14} />}
+                                        <span className="hidden sm:inline">{viewMode === 'grid' ? "Compare" : "Grid"}</span>
                                     </button>
-                                    <button onClick={exportData} className="p-2 text-slate-600 hover:text-white hover:bg-white/5 rounded-lg transition-colors"><Download size={20} /></button>
-                                </div>
-                                <div className="lg:hidden mt-4 flex justify-center gap-4">
-                                    <button onClick={handleShareLink} className="text-xs font-bold uppercase tracking-widest text-[#5B8CFF] flex items-center gap-2">
-                                        {linkCopied ? <Check size={16} /> : <LinkIcon size={16} />}{linkCopied ? "Link Copied" : "Share Link"}
-                                    </button>
-                                    <button onClick={() => setViewMode(prev => prev === 'grid' ? 'compare' : 'grid')} className="text-xs font-bold uppercase tracking-widest text-[#5B8CFF] flex items-center gap-2">
-                                        {viewMode === 'grid' ? <Columns size={16} /> : <LayoutGrid size={16} />}{viewMode === 'grid' ? "Compare View" : "Card View"}
+
+                                    <button
+                                        onClick={exportData}
+                                        className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl border border-white/5 text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-all"
+                                        title="Download JSON Report"
+                                    >
+                                        <Download size={14} />
+                                        <span className="hidden sm:inline">Export</span>
                                     </button>
                                 </div>
                             </div>

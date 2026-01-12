@@ -1,4 +1,4 @@
-import { BOOSTS, CIV_POWERS, HEADINGS, SYNERGIES, MAP_TYPES_INFO, ARCHETYPES, MAP_TYPES, PRESET_MODES, POINT_MODES, MAP_SIZES, RESOURCES, GAME_SPEEDS } from '../constants';
+import { BOOSTS, CIV_POWERS, HEADINGS, SYNERGIES, MAP_TYPES_INFO, ARCHETYPES, MAP_TYPES, PRESET_MODES, POINT_MODES, MAP_SIZES, RESOURCES, GAME_SPEEDS, DEFAULT_NAMES } from '../constants';
 import { Boost, BoostCategory, CivPower, GeneratedItem, PlayerCiv, AppConfig, ResolvedAppConfig, ConcreteMapType, ConcreteArchetype, Heading, GamePhase, MapType, Difficulty, Archetype, SynergyRule, MapInfo, RandomizableOption, PresetMode, PointUsageMode, MapSize, Resources, GameSpeed } from '../types';
 
 export class SeededRNG {
@@ -83,7 +83,10 @@ export const resolveMatchConfig = (config: AppConfig): ResolvedAppConfig => {
 
     const resolvedConfig: ResolvedAppConfig = {
         numPlayers: config.numPlayers,
-        playerNames: config.playerNames,
+        playerNames: Array.from({ length: config.numPlayers }).map((_, i) => {
+            const name = config.playerNames[i];
+            return (name && name.trim()) ? name : (DEFAULT_NAMES[i] || `OPERATIVE ${i + 1}`);
+        }),
         playerArchetypes: [], // Filled below
         startEpoch: config.startEpoch,
         endEpoch: config.endEpoch,
@@ -99,7 +102,8 @@ export const resolveMatchConfig = (config: AppConfig): ResolvedAppConfig => {
     };
 
     // --- 3. Resolve Archetypes ---
-    resolvedConfig.playerArchetypes = config.playerArchetypes.map(arch => {
+    resolvedConfig.playerArchetypes = Array.from({ length: config.numPlayers }).map((_, i) => {
+        const arch = config.playerArchetypes[i] || 'Random';
         if (arch !== 'Random') return arch as ConcreteArchetype;
         return rng.pick(ARCHETYPES.filter(a => a !== 'Random')) as ConcreteArchetype;
     });

@@ -216,25 +216,26 @@ export const SetupScreen: React.FC<Props> = ({ config, onUpdate, onComplete, onF
         onUpdate({ playerArchetypes: newArchetypes });
     };
 
-    const addPlayer = () => {
-        if (config.numPlayers >= 10) return;
-        const newCount = config.numPlayers + 1;
+    const setNumPlayers = (count: number) => {
+        const newCount = Math.min(10, Math.max(2, count));
         const newNames = [...config.playerNames];
         const newArchetypes = [...config.playerArchetypes];
 
-        // Ensure we have a default name from the list for the NEW slot
-        const defaultName = DEFAULT_NAMES[newCount - 1] || `OPERATIVE ${newCount}`;
         if (newNames.length < newCount) {
-            newNames.push(defaultName);
-        } else if (!newNames[newCount - 1]) {
-            newNames[newCount - 1] = defaultName;
-        }
-
-        if (newArchetypes.length < newCount) {
-            newArchetypes.push('Random');
+            for (let i = newNames.length; i < newCount; i++) {
+                newNames.push(DEFAULT_NAMES[i] || `OPERATIVE ${i + 1}`);
+                newArchetypes.push('Random');
+            }
+        } else if (newNames.length > newCount) {
+            newNames.splice(newCount);
+            newArchetypes.splice(newCount);
         }
 
         onUpdate({ numPlayers: newCount, playerNames: newNames, playerArchetypes: newArchetypes });
+    };
+
+    const addPlayer = () => {
+        setNumPlayers(config.numPlayers + 1);
     };
 
     const removePlayer = (idxToRemove: number) => {
@@ -343,14 +344,14 @@ export const SetupScreen: React.FC<Props> = ({ config, onUpdate, onComplete, onF
                                 <User size={48} className="text-slate-400 group-hover:text-orange-500 transition-all" />
                             </div>
                             <div className="flex items-center gap-8">
-                                <button onClick={() => onUpdate({ numPlayers: Math.max(2, config.numPlayers - 1) })} className="w-16 h-16 rounded-2xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-all active:scale-95">
+                                <button onClick={() => setNumPlayers(config.numPlayers - 1)} className="w-16 h-16 rounded-2xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-all active:scale-95">
                                     <span className="text-2xl font-mono">-</span>
                                 </button>
                                 <div className="flex flex-col items-center">
                                     <span className="text-8xl font-black text-slate-100 tracking-tighter">{config.numPlayers}</span>
                                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] font-mono mt-2">Operatives</span>
                                 </div>
-                                <button onClick={() => onUpdate({ numPlayers: Math.min(8, config.numPlayers + 1) })} className="w-16 h-16 rounded-2xl bg-orange-500/10 hover:bg-orange-500/20 flex items-center justify-center text-orange-500 transition-all active:scale-95 hover:shadow-[0_0_20px_rgba(249,115,22,0.2)]">
+                                <button onClick={() => setNumPlayers(config.numPlayers + 1)} className="w-16 h-16 rounded-2xl bg-orange-500/10 hover:bg-orange-500/20 flex items-center justify-center text-orange-500 transition-all active:scale-95 hover:shadow-[0_0_20px_rgba(249,115,22,0.2)]">
                                     <Plus size={24} />
                                 </button>
                             </div>
@@ -389,7 +390,7 @@ export const SetupScreen: React.FC<Props> = ({ config, onUpdate, onComplete, onF
                                         value={config.playerNames[i] || ''}
                                         placeholder={DEFAULT_NAMES[i] || `OPERATIVE ${i + 1}`}
                                         onChange={(e) => updateName(i, e.target.value)}
-                                        className="bg-transparent text-xl font-bold text-slate-200 focus:outline-none placeholder:text-slate-700 w-full uppercase tracking-wider"
+                                        className="bg-transparent text-xl font-bold text-slate-200 focus:outline-none placeholder:text-slate-700 w-full uppercase tracking-wider caret-orange-500"
                                     />
                                 </div>
                                 <div className="flex items-center gap-2">
